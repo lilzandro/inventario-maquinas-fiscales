@@ -50,7 +50,7 @@ class DashboardView(ctk.CTkFrame):
         self.header.pack_propagate(False)
 
         user_frame = ctk.CTkFrame(self.header, fg_color="transparent")
-        user_frame.pack(side="left", padx=15, pady=8)
+        user_frame.place(relx=1, rely=0.5, anchor="e", x=-15, y=0)
 
         self.user_label = ctk.CTkLabel(
             user_frame,
@@ -73,32 +73,32 @@ class DashboardView(ctk.CTkFrame):
         )
         self.logout_btn.pack(side="left", padx=5)
 
-        nav_frame = ctk.CTkFrame(self.header, fg_color="transparent")
-        nav_frame.pack(side="right", padx=15, pady=8)
+        nav_container = ctk.CTkFrame(self.header, fg_color="transparent")
+        nav_container.place(relx=0.5, rely=0.5, anchor="center")
 
         menu_items = [
-            ("🏠", "Inicio", self.show_home),
-            ("📦", "Inventario", self.show_inventory_view),
-            ("👥", "Clientes", self.show_clients_view),
-            ("⚙️", "Servicios", self.show_services_view),
-            ("📑", "Catálogos", self.show_catalogs_view),
-            ("📊", "Reportes", self.show_reportes_view),
+            ("🏠 Inicio", self.show_home),
+            ("📦 Inventario", self.show_inventory_view),
+            ("👥 Clientes", self.show_clients_view),
+            ("⚙️ Servicios", self.show_services_view),
+            ("📑 Catálogos", self.show_catalogs_view),
+            ("📊 Reportes", self.show_reportes_view),
         ]
 
         self.menu_buttons = []
-        for icon, text, cmd in menu_items:
+        for text, cmd in menu_items:
             btn = ctk.CTkButton(
-                nav_frame,
-                text=f"{icon}",
-                width=42,
+                nav_container,
+                text=text,
+                width=100,
                 height=34,
                 command=cmd,
                 fg_color="transparent",
                 hover_color=COLORS["hover"],
                 text_color=COLORS["text_light"],
-                font=ctk.CTkFont(size=16),
+                font=ctk.CTkFont(size=13),
             )
-            btn.pack(side="left", padx=3)
+            btn.pack(side="left", padx=4)
             self.menu_buttons.append(btn)
 
     def setup_main_content(self):
