@@ -44,9 +44,7 @@ class ReportsView(ctk.CTkFrame):
             self,
             fg_color=COLORS["card"],
             segmented_button_fg_color=COLORS["bg"],
-            segmented_button_selected_color=COLORS["medium"],
-            segmented_button_text_color=COLORS["gray"],
-            segmented_button_selected_text_color="white"
+            segmented_button_selected_color=COLORS["medium"]
         )
         self.tabview.pack(fill="both", expand=True, padx=20, pady=20)
 
