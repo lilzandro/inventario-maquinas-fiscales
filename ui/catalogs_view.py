@@ -103,35 +103,6 @@ class CatalogsView(ctk.CTkFrame):
 
         self.load_distrib()
 
-    def add_distrib(self):
-        name = self.d_name.get()
-        contact = self.d_contact.get()
-        if not name:
-            self.d_msg.configure(text="⚠ Ingrese nombre", text_color=COLORS["red"])
-            return
-
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("INSERT INTO distributors (name, contact) VALUES (?, ?)", (name, contact))
-        conn.commit()
-        conn.close()
-        self.d_name.delete(0, 'end')
-        self.d_contact.delete(0, 'end')
-        self.d_msg.configure(text="✓ Distribuidor agregado", text_color=COLORS["green"])
-        self.load_distrib()
-
-    def load_distrib(self):
-        for row in self.d_rows:
-            for lbl in row[:-1]:
-                lbl.configure(text="")
-
-        if not os.path.exists(DB_PATH):
-            return
-        conn = sqlite3.connect(DB_PATH)
-        for idx, row in enumerate(conn.execute("SELECT id, name, contact FROM distributors LIMIT 19")):
-            for col, val in enumerate(row):
-                self.d_rows[idx][col].configure(text=str(val) if val else "-")
-        conn.close()
-
     def build_model(self):
         header = ctk.CTkFrame(self.tab_model, fg_color=COLORS["medium"], height=50)
         header.pack(fill="x")
@@ -209,14 +180,62 @@ class CatalogsView(ctk.CTkFrame):
         self.load_model()
 
     def load_model(self):
-        for row in self.m_rows:
-            for lbl in row:
-                lbl.configure(text="")
-
-        if not os.path.exists(DB_PATH):
-            return
-        conn = sqlite3.connect(DB_PATH)
-        for idx, row in enumerate(conn.execute("SELECT id, brand, model_name FROM machine_models LIMIT 24")):
-            for col, val in enumerate(row):
-                self.m_rows[idx][col].configure(text=str(val))
+        for w in self.m_frame.winfo_children():
+            w.destroy()
+        conn=sqlite3.connect(DB_PATH)
+        rows=conn.execute("SELECT id, brand, model_name FROM machine_models ORDER BY brand, model_name").fetchall()
         conn.close()
+        if not rows:
+            ctk.CTkLabel(self.m_frame, text="No hay modelos", text_color="#9CA3AF", font=ctk.CTkFont(size=12)).pack(pady=20)
+            return
+        for r in rows:
+            fid, fb, fm = r
+            row=ctk.CTkFrame(self.m_frame, fg_color="#F8FAFC", corner_radius=10)
+            row.pack(fill="x", pady=4)
+            row.bind("<Enter>", lambda e, w=row: w.configure(fg_color="#F1F5F9"))
+            row.bind("<Leave>", lambda e, w=row: w.configure(fg_color="#F8FAFC"))
+            rf=ctk.CTkFrame(row, fg_color="transparent"); rf.pack(fill="x", padx=12, pady=8)
+            rf.grid_columnconfigure(0, weight=2); rf.grid_columnconfigure(1, weight=3); rf.grid_columnconfigure(2, weight=1)
+            ctk.CTkLabel(rf, text=fb, font=ctk.CTkFont(size=12, weight="bold"), text_color=COLORS["dark"]).grid(row=0, column=0, sticky="w")
+            ctk.CTkLabel(rf, text=fm, font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).grid(row=0, column=1, sticky="w", padx=(10,0))
+            btnf=ctk.CTkFrame(rf, fg_color="transparent"); btnf.grid(row=0, column=2, sticky="e")
+            ctk.CTkButton(btnf, text="✏️", width=26, height=22, corner_radius=6, font=ctk.CTkFont(size=10),
+                          command=lambda i=fid, b=fb, m=fm: self._m_edit(i, b, m), fg_color=COLORS["gold"], hover_color="#C78A32", text_color="white").pack(side="left", padx=1)
+            ctk.CTkButton(btnf, text="🗑️", width=26, height=22, corner_radius=6, font=ctk.CTkFont(size=10),
+                          command=lambda i=fid, t=fb+" - "+fm: self._m_borrar(i, t), fg_color="#EF4444", hover_color="#DC2626", text_color="white").pack(side="left", padx=1)
+
+    def _m_borrar(self, mid, txt):
+        top=ctk.CTkToplevel(self); top.title("Confirmar"); top.geometry("300x140"); top.transient(self.master); top.grab_set()
+        ctk.CTkLabel(top, text="¿Eliminar?", font=ctk.CTkFont(size=13, weight="bold")).pack(pady=(16,2))
+        ctk.CTkLabel(top, text=txt, font=ctk.CTkFont(size=11), text_color="#6B7280").pack()
+        ctk.CTkLabel(top, text="Esta acción no se puede deshacer", font=ctk.CTkFont(size=10), text_color="#EF4444").pack(pady=(2,12))
+        f=ctk.CTkFrame(top, fg_color="transparent")
+        f.pack()
+        ctk.CTkButton(f, text="Cancelar", command=top.destroy, width=70, corner_radius=6, fg_color="#6B7280").pack(side="left", padx=4)
+        ctk.CTkButton(f, text="Eliminar", width=70, corner_radius=6, fg_color="#EF4444", text_color="white",
+                       command=lambda: (self._m_do(mid), top.destroy())).pack(side="left", padx=4)
+
+    def _m_do(self, mid):
+        try:
+            conn=sqlite3.connect(DB_PATH)
+            conn.execute("DELETE FROM machine_models WHERE id=?", (mid,))
+            conn.commit(); conn.close()
+            self.load_model()
+        except Exception:
+            pass
+
+    def _m_edit(self, mid, old_brand, old_model):
+        top=ctk.CTkToplevel(self); top.title("Editar"); top.geometry("320x200"); top.transient(self.master); top.grab_set()
+        f=ctk.CTkFrame(top, fg_color="transparent"); f.pack(fill="both", expand=True, padx=20, pady=20)
+        ctk.CTkLabel(f, text="Marca", font=ctk.CTkFont(size=11), text_color=COLORS["gray"]).pack(anchor="w")
+        e1=ctk.CTkEntry(f, width=220, corner_radius=8); e1.insert(0, old_brand); e1.pack(fill="x", pady=(2,10))
+        ctk.CTkLabel(f, text="Modelo", font=ctk.CTkFont(size=11), text_color=COLORS["gray"]).pack(anchor="w")
+        e2=ctk.CTkEntry(f, width=220, corner_radius=8); e2.insert(0, old_model); e2.pack(fill="x", pady=(2,12))
+        def sv():
+            try:
+                conn=sqlite3.connect(DB_PATH)
+                conn.execute("UPDATE machine_models SET brand=?, model_name=? WHERE id=?", (e1.get().strip(), e2.get().strip(), mid))
+                conn.commit(); conn.close()
+                top.destroy(); self.load_model()
+            except: pass
+        ctk.CTkButton(f, text="Guardar", command=sv, fg_color=COLORS["blue"], hover_color="#027A9E", text_color="white", corner_radius=8, width=100).pack()

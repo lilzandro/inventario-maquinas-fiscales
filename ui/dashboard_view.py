@@ -124,11 +124,6 @@ class DashboardView(ctk.CTkFrame):
         self.set_active(0)
         self.current_view = DashboardHome(self.main_content)
 
-    def show_inventory_view(self):
-        self.clear_content()
-        self.set_active(1)
-        self.current_view = InventoryView(self.main_content)
-
     def show_clients_view(self):
         self.clear_content()
         self.set_active(2)
