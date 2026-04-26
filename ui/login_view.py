@@ -1,17 +1,17 @@
 import customtkinter as ctk
 import sqlite3
 import os
-
-DB_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "inventario.db"
-)
+from database.db_manager import verify_password, DB_PATH
 
 COLORS = {
-    "dark_blue": "#1A3263",
-    "gold": "#FAB95B",
+    "dark_blue": "#010d23",
+    "medium_blue": "#03223f",
+    "light_blue": "#038bbb",
+    "gold": "#fccb6f",
+    "gold_dark": "#e19f41",
     "bg_gray": "#F5F5F5",
     "white": "#FFFFFF",
-    "text_dark": "#1A3263",
+    "text_dark": "#010d23",
     "text_light": "#FFFFFF",
     "text_gray": "#6B7280",
     "card_bg": "#FFFFFF",
@@ -103,13 +103,11 @@ class LoginView(ctk.CTkFrame):
 
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM users WHERE username=? AND password=?", (user, pwd)
-        )
+        cursor.execute("SELECT * FROM users WHERE username=?", (user,))
         user_row = cursor.fetchone()
         conn.close()
 
-        if user_row:
+        if user_row and verify_password(pwd, user_row[2]):
             self.error_label.configure(text="")
             self.master.unbind("<Return>")
             self.on_login_success(user_row)

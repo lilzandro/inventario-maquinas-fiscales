@@ -1,147 +1,221 @@
 import customtkinter as ctk
-from tkinter import ttk
 import sqlite3
 import os
 from datetime import date, timedelta
+from database.db_manager import DB_PATH
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'inventario.db')
+COLORS = {
+    "dark": "#010d23",
+    "blue": "#038bbb",
+    "gold": "#e19f41",
+    "medium": "#03223f",
+    "gray": "#6B7280",
+    "green": "#10B981",
+    "red": "#EF4444",
+    "bg": "#F3F4F6",
+    "card": "#FFFFFF",
+    "orange": "#F59E0B",
+}
 
 class ServicesView(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, fg_color="transparent")
+        super().__init__(master, fg_color=COLORS["bg"])
         self.pack(fill="both", expand=True)
 
-        self.title = ctk.CTkLabel(self, text="Gestión de Servicios y Mantenimientos", font=ctk.CTkFont(size=24, weight="bold"))
-        self.title.pack(pady=(0, 20), anchor="w")
-
-        self.tabview = ctk.CTkTabview(self)
-        self.tabview.pack(fill="both", expand=True)
-
-        self.tab_nuevo = self.tabview.add("Registrar Servicio / Instalación")
-        self.tab_historial = self.tabview.add("Historial Ténico")
-        
         self.clients_dict = {}
         self.machines_dict = {}
-        
-        self.setup_nuevo_tab()
-        self.setup_historial_tab()
-        
-    def load_data(self):
-        self.clients_dict.clear()
-        self.machines_dict.clear()
-        if not os.path.exists(DB_PATH): return
-        conn = sqlite3.connect(DB_PATH)
-        for row in conn.execute("SELECT id, name FROM clients"):
-            self.clients_dict[row[1]] = row[0]
-            
-        for row in conn.execute("SELECT id, serial_number, status FROM machines"):
-            # Para facilitar visualización
-            self.machines_dict[f"{row[1]} ({row[2]})"] = row[0]
-        conn.close()
-
-    def setup_nuevo_tab(self):
         self.load_data()
-        
-        form_frame = ctk.CTkFrame(self.tab_nuevo, fg_color="transparent")
-        form_frame.pack(fill="both", expand=True, pady=10, padx=20)
-        
-        ctk.CTkLabel(form_frame, text="Tipo de Servicio:").grid(row=0, column=0, pady=10, sticky="w")
-        self.combo_type = ctk.CTkComboBox(form_frame, values=["Instalación", "Mantenimiento Preventivo", "Reparación"], width=250)
-        self.combo_type.grid(row=0, column=1, pady=10, padx=10)
-        
-        ctk.CTkLabel(form_frame, text="Máquina:").grid(row=1, column=0, pady=10, sticky="w")
-        machines_opts = list(self.machines_dict.keys())
-        self.combo_machine = ctk.CTkComboBox(form_frame, values=machines_opts if machines_opts else ["(Sin Máquinas)"], width=250)
-        self.combo_machine.grid(row=1, column=1, pady=10, padx=10)
-        
-        ctk.CTkLabel(form_frame, text="Cliente:").grid(row=2, column=0, pady=10, sticky="w")
-        clients_opts = list(self.clients_dict.keys())
-        self.combo_client = ctk.CTkComboBox(form_frame, values=clients_opts if clients_opts else ["(Sin Clientes)"], width=250)
-        self.combo_client.grid(row=2, column=1, pady=10, padx=10)
-        
-        ctk.CTkLabel(form_frame, text="Observaciones:").grid(row=3, column=0, pady=10, sticky="nw")
-        self.txt_remarks = ctk.CTkTextbox(form_frame, width=350, height=80)
-        self.txt_remarks.grid(row=3, column=1, pady=10, padx=10, columnspan=2, sticky="w")
-        
-        self.error_label = ctk.CTkLabel(form_frame, text="", text_color="red")
-        self.error_label.grid(row=4, column=0, columnspan=2, pady=5)
-        
-        ctk.CTkButton(form_frame, text="Procesar y Guardar", command=self.save_service).grid(row=5, column=0, columnspan=2, pady=20)
+        self.build_ui()
+
+    def build_ui(self):
+        header = ctk.CTkFrame(self, fg_color=COLORS["dark"], height=60)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        ctk.CTkLabel(
+            header,
+            text="🔧 Servicios y Mantenimientos",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
+        ).pack(side="left", padx=20)
+
+        main = ctk.CTkFrame(self, fg_color="transparent")
+        main.pack(fill="both", expand=True, padx=20, pady=20)
+
+        form_card = ctk.CTkFrame(main, fg_color=COLORS["card"], corner_radius=16)
+        form_card.pack(fill="x", pady=(0, 15))
+
+        ctk.CTkLabel(
+            form_card,
+            text="Registrar Nuevo Servicio",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["dark"]
+        ).pack(anchor="w", padx=25, pady=(20, 10))
+
+        ctk.CTkFrame(form_card, height=1, fg_color="#E5E7EB").pack(fill="x", padx=25)
+
+        fields = ctk.CTkFrame(form_card, fg_color="transparent")
+        fields.pack(fill="x", padx=25, pady=20)
+
+        col1 = ctk.CTkFrame(fields, fg_color="transparent")
+        col1.pack(side="left", fill="both", expand=True, padx=(0, 15))
+
+        ctk.CTkLabel(col1, text="Tipo de Servicio", font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).pack(anchor="w")
+        self.type_combo = ctk.CTkComboBox(
+            col1,
+            values=["Instalación", "Mantenimiento Preventivo", "Reparación"],
+            width=250,
+            corner_radius=8
+        )
+        self.type_combo.pack(anchor="w", pady=(5, 15))
+
+        ctk.CTkLabel(col1, text="Máquina", font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).pack(anchor="w")
+        self.machine_combo = ctk.CTkComboBox(
+            col1,
+            values=list(self.machines_dict.keys()),
+            width=250,
+            corner_radius=8
+        )
+        self.machine_combo.pack(anchor="w", pady=(5, 15))
+
+        col2 = ctk.CTkFrame(fields, fg_color="transparent")
+        col2.pack(side="left", fill="both", expand=True, padx=(0, 15))
+
+        ctk.CTkLabel(col2, text="Cliente", font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).pack(anchor="w")
+        self.client_combo = ctk.CTkComboBox(
+            col2,
+            values=list(self.clients_dict.keys()),
+            width=250,
+            corner_radius=8
+        )
+        self.client_combo.pack(anchor="w", pady=(5, 15))
+
+        ctk.CTkLabel(fields, text="Observaciones", font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).pack(anchor="w")
+        self.remarks = ctk.CTkTextbox(fields, width=300, height=60, corner_radius=8)
+        self.remarks.pack(anchor="w", pady=10)
+
+        actions = ctk.CTkFrame(fields, fg_color="transparent")
+        actions.pack(anchor="w", pady=10)
+
+        ctk.CTkButton(
+            actions,
+            text="✓ Registrar Servicio",
+            command=self.save_service,
+            fg_color=COLORS["gold"],
+            hover_color="#C78A32",
+            text_color=COLORS["dark"],
+            font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=8,
+            height=40
+        ).pack(side="left")
+
+        self.message = ctk.CTkLabel(actions, text="", font=ctk.CTkFont(size=13))
+        self.message.pack(side="left", padx=15)
+
+        table_card = ctk.CTkFrame(main, fg_color=COLORS["card"], corner_radius=16)
+        table_card.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(
+            table_card,
+            text="Historial de Servicios",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["dark"]
+        ).pack(anchor="w", padx=25, pady=(20, 5))
+
+        ctk.CTkFrame(table_card, height=1, fg_color="#E5E7EB").pack(fill="x", padx=25)
+
+        self.table = ctk.CTkScrollableFrame(table_card, fg_color="transparent")
+        self.table.pack(fill="both", expand=True, padx=20, pady=15)
+
+        headers = ["ID", "Máquina", "Cliente", "Tipo", "Fecha", "Próximo Mant."]
+        for i, h in enumerate(headers):
+            ctk.CTkLabel(
+                self.table, text=h,
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=COLORS["dark"]
+            ).grid(row=0, column=i, padx=8, pady=8, sticky="w")
+
+        self.rows = []
+        for i in range(1, 30):
+            row = []
+            for j in range(6):
+                lbl = ctk.CTkLabel(self.table, text="", font=ctk.CTkFont(size=10), text_color=COLORS["gray"])
+                lbl.grid(row=i, column=j, padx=8, pady=3, sticky="w")
+                row.append(lbl)
+            self.rows.append(row)
+
+        self.load_history()
+
+    def load_data(self):
+        if not os.path.exists(DB_PATH):
+            return
+        conn = sqlite3.connect(DB_PATH)
+        for r in conn.execute("SELECT id, name FROM clients"):
+            self.clients_dict[r[1]] = r[0]
+        for r in conn.execute("SELECT id, serial_number, status FROM machines"):
+            self.machines_dict[f"{r[1]} ({r[2]})"] = r[0]
+        conn.close()
 
     def save_service(self):
-        s_type = self.combo_type.get()
-        m_str = self.combo_machine.get()
-        c_str = self.combo_client.get()
-        remarks = self.txt_remarks.get("1.0", "end-1c")
-        
-        if m_str not in self.machines_dict or c_str not in self.clients_dict:
-            self.error_label.configure(text="Máquina o Cliente inválidos.", text_color="red")
+        stype = self.type_combo.get()
+        mstr = self.machine_combo.get()
+        cstr = self.client_combo.get()
+        remarks = self.remarks.get("1.0", "end-1c")
+
+        if mstr not in self.machines_dict or cstr not in self.clients_dict:
+            self.message.configure(text="⚠ Seleccione máquina y cliente válidos", text_color=COLORS["red"])
             return
-            
-        m_id = self.machines_dict[m_str]
-        c_id = self.clients_dict[c_str]
-        
-        # Logica fechas
-        service_date = date.today().strftime("%Y-%m-%d")
+
+        m_id = self.machines_dict[mstr]
+        c_id = self.clients_dict[cstr]
+        sdate = date.today().strftime("%Y-%m-%d")
         next_maint = None
-        if s_type in ["Instalación", "Mantenimiento Preventivo"]:
+        if stype in ["Instalación", "Mantenimiento Preventivo"]:
             next_maint = (date.today() + timedelta(days=365)).strftime("%Y-%m-%d")
-            
+
         conn = sqlite3.connect(DB_PATH)
-        # Update machine si es instalación o para asegurar su enlace al cliente actual
-        if s_type == "Instalación":
-            # Cambia a instalada y la enlaza al cliente
+        if stype == "Instalación":
             conn.execute("UPDATE machines SET status='Instalada', client_id=? WHERE id=?", (c_id, m_id))
-            
-        # Register history
-        conn.execute("INSERT INTO services (machine_id, service_type, service_date, next_maintenance_date, remarks) VALUES (?, ?, ?, ?, ?)",
-                     (m_id, s_type, service_date, next_maint, remarks))
+        conn.execute(
+            "INSERT INTO services (machine_id, service_type, service_date, next_maintenance_date, remarks) VALUES (?, ?, ?, ?, ?)",
+            (m_id, stype, sdate, next_maint, remarks)
+        )
         conn.commit()
         conn.close()
-        
-        self.error_label.configure(text=f"Registrado con éxito. Próx Mantenimiento: {next_maint or 'N/A'}", text_color="green")
-        self.txt_remarks.delete("1.0", "end")
-        
-        self.load_data()
-        updated_opts = list(self.machines_dict.keys())
-        self.combo_machine.configure(values=updated_opts)
-        if updated_opts:
-            self.combo_machine.set(updated_opts[0])
-            
-        self.load_history()
 
-    def setup_historial_tab(self):
-        columns = ("ID", "Máquina (Serial)", "Cliente", "Tipo Servicio", "Fecha", "Próximo Mantenimiento")
-        self.tree = ttk.Treeview(self.tab_historial, columns=columns, show="headings")
-        
-        for col in columns:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=150, anchor="center")
-            
-        self.tree.column("Cliente", width=220, anchor="w")
-        self.tree.column("Próximo Mantenimiento", width=180, anchor="center")
-            
-        scrollbar = ttk.Scrollbar(self.tab_historial, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
-        
-        self.tree.pack(side="left", fill="both", expand=True, pady=10)
-        scrollbar.pack(side="right", fill="y", pady=10)
-        
+        self.remarks.delete("1.0", "end")
+        self.message.configure(text=f"✓ Servicio registrado. Próximo mantenimiento: {next_maint or 'N/A'}", text_color=COLORS["green"])
         self.load_history()
+        self.load_data()
+
+        opts = list(self.machines_dict.keys())
+        self.machine_combo.configure(values=opts)
+        if opts:
+            self.machine_combo.set(opts[0])
 
     def load_history(self):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-            
-        if not os.path.exists(DB_PATH): return
+        for row in self.rows:
+            for lbl in row:
+                lbl.configure(text="")
+
+        if not os.path.exists(DB_PATH):
+            return
         conn = sqlite3.connect(DB_PATH)
         query = '''
             SELECT s.id, m.serial_number, c.name, s.service_type, s.service_date, IFNULL(s.next_maintenance_date, 'N/A')
             FROM services s
             JOIN machines m ON s.machine_id = m.id
             JOIN clients c ON m.client_id = c.id
-            ORDER BY s.id DESC
+            ORDER BY s.id DESC LIMIT 29
         '''
-        for row in conn.execute(query):
-            self.tree.insert("", "end", values=row)
+        type_colors = {
+            "Instalación": COLORS["green"],
+            "Mantenimiento Preventivo": COLORS["blue"],
+            "Reparación": COLORS["red"],
+        }
+
+        for idx, row in enumerate(conn.execute(query)):
+            for col, val in enumerate(row):
+                self.rows[idx][col].configure(text=str(val))
+            self.rows[idx][3].configure(text_color=type_colors.get(row[3], COLORS["gray"]))
         conn.close()

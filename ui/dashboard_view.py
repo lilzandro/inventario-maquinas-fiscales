@@ -8,17 +8,17 @@ from ui.reports_view import ReportsView
 import sqlite3
 import os
 from datetime import date, timedelta
-
-DB_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "inventario.db"
-)
+from database.db_manager import DB_PATH
 
 COLORS = {
-    "dark_blue": "#1A3263",
-    "gold": "#FAB95B",
+    "dark_blue": "#010d23",
+    "medium_blue": "#03223f",
+    "light_blue": "#038bbb",
+    "gold": "#fccb6f",
+    "gold_dark": "#e19f41",
     "bg_gray": "#F5F5F5",
     "white": "#FFFFFF",
-    "text_dark": "#1A3263",
+    "text_dark": "#010d23",
     "text_light": "#FFFFFF",
     "text_gray": "#6B7280",
     "card_bg": "#FFFFFF",
@@ -67,7 +67,7 @@ class DashboardView(ctk.CTkFrame):
             height=34,
             command=self.on_logout_click,
             fg_color=COLORS["gold"],
-            hover_color="#E5A84A",
+            hover_color=COLORS["gold_dark"],
             text_color=COLORS["dark_blue"],
             font=ctk.CTkFont(size=16),
         )
@@ -195,7 +195,7 @@ class DashboardHome(ctk.CTkFrame):
             header,
             text="Estadísticas",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#1A1A2E",
+            text_color="#010d23",
         ).pack(side="left")
 
         ctk.CTkFrame(left, height=1, fg_color="#E5E7EB").pack(fill="x", padx=18)
@@ -214,9 +214,8 @@ class DashboardHome(ctk.CTkFrame):
             0,
             "En Stock",
             self.stats["en_stock"],
-            "#3B82F6",
-            "📦",
-            "#EBF5FF",
+            "#038bbb",
+            "#E6F4F8",
         )
         self.create_stat(
             stats_grid,
@@ -224,9 +223,8 @@ class DashboardHome(ctk.CTkFrame):
             1,
             "Instaladas",
             self.stats["instaladas"],
-            "#10B981",
-            "🔧",
-            "#ECFDF5",
+            "#03223f",
+            "#E6EBF0",
         )
         self.create_stat(
             stats_grid,
@@ -234,9 +232,8 @@ class DashboardHome(ctk.CTkFrame):
             0,
             "Clientes",
             self.stats["clientes"],
-            "#8B5CF6",
-            "👥",
-            "#F5F3FF",
+            "#038bbb",
+            "#E6F4F8",
         )
         self.create_stat(
             stats_grid,
@@ -244,12 +241,18 @@ class DashboardHome(ctk.CTkFrame):
             1,
             "Servicios",
             self.stats["servicios"],
-            "#F59E0B",
-            "⚙️",
-            "#FFFBEB",
+            "#e19f41",
+            "#FDF5E6",
         )
 
-    def create_stat(self, parent, row, col, label, value, color, icon, bg_color):
+    def create_stat(self, parent, row, col, label, value, color, bg_color):
+        icons = {
+            "En Stock": "📦",
+            "Instaladas": "🔧",
+            "Clientes": "👥",
+            "Servicios": "⚙️",
+        }
+
         card = ctk.CTkFrame(parent, fg_color=bg_color, corner_radius=14)
         card.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
 
@@ -257,14 +260,17 @@ class DashboardHome(ctk.CTkFrame):
         content.pack(expand=True)
 
         ctk.CTkLabel(
-            content, text=icon, font=ctk.CTkFont(size=32), text_color=color
+            content,
+            text=icons.get(label, "📋"),
+            font=ctk.CTkFont(size=32),
+            text_color=color,
         ).pack(pady=(10, 4))
 
         ctk.CTkLabel(
             content,
             text=str(value),
             font=ctk.CTkFont(size=28, weight="bold"),
-            text_color=color,
+            text_color="#1A1A2E",
         ).pack()
 
         ctk.CTkLabel(
@@ -285,7 +291,7 @@ class DashboardHome(ctk.CTkFrame):
             header,
             text="Actividad Reciente",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#1A1A2E",
+            text_color="#010d23",
         ).pack(side="left")
 
         count_badge = ctk.CTkLabel(
@@ -293,7 +299,7 @@ class DashboardHome(ctk.CTkFrame):
             text=f" {len(self.recent_activity)} ",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color="white",
-            fg_color="#1A3263",
+            fg_color="#03223f",
             corner_radius=10,
         )
         count_badge.pack(side="right")
@@ -325,9 +331,9 @@ class DashboardHome(ctk.CTkFrame):
         tipo, serial, cliente, fecha = activity
 
         colors = {
-            "Instalación": ("#3B82F6", "#EFF6FF"),
-            "Mantenimiento Preventivo": ("#10B981", "#ECFDF5"),
-            "Reparación": ("#EF4444", "#FEF2F2"),
+            "Instalación": ("#038bbb", "#E6F4F8"),
+            "Mantenimiento Preventivo": ("#03223f", "#E6EBF0"),
+            "Reparación": ("#e19f41", "#FDF5E6"),
         }
         icons = {
             "Instalación": "🔧",
@@ -391,7 +397,7 @@ class DashboardHome(ctk.CTkFrame):
             header,
             text="Acciones Rápidas",
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#1A1A2E",
+            text_color="#010d23",
         ).pack(side="left")
 
         actions = ctk.CTkFrame(actions_frame, fg_color="transparent")
@@ -404,10 +410,10 @@ class DashboardHome(ctk.CTkFrame):
         actions.grid_columnconfigure(3, weight=1)
 
         buttons = [
-            ("Nueva Máquina", "📦", "#3B82F6", lambda: self.show_inventory_view()),
-            ("Nuevo Cliente", "👤", "#10B981", lambda: self.show_clients_view()),
-            ("Registrar Servicio", "🔧", "#F59E0B", lambda: self.show_services_view()),
-            ("Ver Reportes", "📊", "#8B5CF6", lambda: self.show_reportes_view()),
+            ("Nueva Máquina", "📦", "#038bbb", lambda: self.show_inventory_view()),
+            ("Nuevo Cliente", "👤", "#03223f", lambda: self.show_clients_view()),
+            ("Registrar Servicio", "🔧", "#e19f41", lambda: self.show_services_view()),
+            ("Ver Reportes", "📊", "#fccb6f", lambda: self.show_reportes_view()),
         ]
 
         for i, (text, icon, color, cmd) in enumerate(buttons):
