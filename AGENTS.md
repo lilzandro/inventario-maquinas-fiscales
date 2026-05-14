@@ -8,6 +8,23 @@
 - **Dependencias**: `customtkinter`, `openpyxl`, `pillow` (ver `requirements.txt`)
 - Instalar desde `requirements.txt` y asegurar que `inventario.db` exista antes de correr (la inicialización de BD ocurre en la primera llamada a `create_tables()`)
 
+### Sistema de Temas (Importante para UI)
+- **AppTheme** en `theme.py` define constantes de color globales:
+  - `BACKGROUND = "#1f1f20"` (fondo principal)
+  - `PRIMARY = "#2b4c7e"` (color primario botones)
+  - `SECONDARY = "#567ebb"` (color secundario/hover)
+  - `BORDER = "#606d80"` (bordes/detalles)
+  - `TEXT = "#dce0e6"` (texto y contrastes)
+- **apply_global_theme()** configura el modo oscuro
+- **Llamar a apply_global_theme()** antes de crear cualquier widget (ver `main.py`)
+- **Los widgets deben usar las constantes de AppTheme explícitamente**:
+  - `ctk.CTkFrame(fg_color=AppTheme.BACKGROUND)`
+  - `ctk.CTkButton(fg_color=AppTheme.PRIMARY, hover_color=AppTheme.SECONDARY)`
+  - `ctk.CTkEntry(border_color=AppTheme.BORDER, text_color=AppTheme.TEXT)`
+  - `ctk.CTkLabel(text_color=AppTheme.TEXT)`
+- Los widgets heredan estos colores por configuración de clase; no usar colores hardcodeados
+- Cada vista mantiene su propio diccionario `COLORS` para estilos específicos (no compartir entre vistas)
+
 ### Seguridad (Mejoras implementadas)
 - **Contraseñas hasheadas** con PBKDF2-SHA256 (funciones `hash_password` / `verify_password` en `db_manager.py`)
 - Admin por defecto `admin/admin123` — la contraseña ahora se almacena con hash, no texto plano
@@ -52,3 +69,4 @@ Tablas: `users`, `distributors`, `machine_models`, `clients`, `machines`, `servi
 - No asumir que `inventario.db` existe — verificar presencia o llamar `create_tables()` si se inicializa desde cero
 - Re-vincular `<Return>` sin desvincular previamente causa intentos de login duplicados
 - Modificar valores de estado de máquina rompe filtros posteriores — usar exactamente los strings enumerados
+- **No hardcodear colores en widgets** — usar `AppTheme` y aplicar explícitamente las constantes al crear widgets

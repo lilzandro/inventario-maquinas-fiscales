@@ -2,326 +2,382 @@ import customtkinter as ctk
 import sqlite3
 import os
 from database.db_manager import DB_PATH
+from theme import AppTheme, UI_COLORS, FONT_SIZES, SIZES
+from utils.logger import logger, log_error
 
-COLORS = {
-    "dark": "#010d23",
-    "blue": "#038bbb",
-    "gold": "#e19f41",
-    "medium": "#03223f",
-    "gray": "#6B7280",
-    "green": "#10B981",
-    "red": "#EF4444",
-    "bg": "#F3F4F6",
-    "card": "#FFFFFF",
-    "purple": "#8B5CF6",
-}
+_FS = {k: round(v * 1.15) for k, v in FONT_SIZES.items()}
+
+
+
+def _stat_card(parent, col, label, value, bg, color, icon):
+    card = ctk.CTkFrame(parent, fg_color=UI_COLORS.CARD,
+                        corner_radius=SIZES["card_radius"],
+                        border_width=1, border_color=UI_COLORS.BORDER)
+    card.grid(row=0, column=col,
+              padx=(0 if col == 0 else SIZES["pad_small"], 0),
+              sticky="ew")
+    inner = ctk.CTkFrame(card, fg_color="transparent")
+    inner.pack(fill="x", padx=SIZES["pad"], pady=SIZES["pad"])
+    box = ctk.CTkFrame(inner, width=SIZES["icon_box"], height=SIZES["icon_box"],
+                       fg_color=bg, corner_radius=10)
+    box.pack(anchor="w")
+    box.pack_propagate(False)
+    ctk.CTkLabel(box, text=icon, font=ctk.CTkFont(size=16),
+                 text_color=color).place(relx=0.5, rely=0.5, anchor="center")
+    ctk.CTkLabel(inner, text=str(value),
+                 font=ctk.CTkFont(size=_FS["xxlarge"], weight="bold"),
+                 text_color=UI_COLORS.TEXT).pack(anchor="w", pady=(6, 2))
+    ctk.CTkLabel(inner, text=label,
+                 font=ctk.CTkFont(size=_FS["small"]),
+                 text_color=UI_COLORS.TEXT_MUTED).pack(anchor="w")
+
 
 class ClientsView(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, fg_color=COLORS["bg"])
+        super().__init__(master, fg_color=AppTheme.BACKGROUND)
         self.pack(fill="both", expand=True)
         self.build_ui()
 
-    def build_ui(self):
-        header = ctk.CTkFrame(self, fg_color=COLORS["dark"], height=60)
-        header.pack(fill="x")
-        header.pack_propagate(False)
-
-        ctk.CTkLabel(
-            header,
-            text="👥 Gestión de Clientes",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="white"
-        ).pack(side="left", padx=20)
-
-        self.count_label = ctk.CTkLabel(
-            header,
-            text="0 clientes",
-            font=ctk.CTkFont(size=12),
-            text_color="#9CA3AF"
-        )
-        self.count_label.pack(side="right", padx=20)
-
-        main = ctk.CTkFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=20, pady=20)
-
-        form_card = ctk.CTkFrame(main, fg_color=COLORS["card"], corner_radius=16)
-        form_card.pack(fill="x", pady=(0, 15))
-
-        ctk.CTkLabel(
-            form_card,
-            text="Nuevo Cliente",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=COLORS["dark"]
-        ).pack(anchor="w", padx=25, pady=(20, 10))
-
-        ctk.CTkFrame(form_card, height=1, fg_color="#E5E7EB").pack(fill="x", padx=25)
-
-        fields = ctk.CTkFrame(form_card, fg_color="transparent")
-        fields.pack(fill="x", padx=25, pady=20)
-
-        col1 = ctk.CTkFrame(fields, fg_color="transparent")
-        col1.pack(side="left", fill="both", expand=True, padx=(0, 20))
-
-        ctk.CTkLabel(col1, text="Documento (RUT/CI)", font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).pack(anchor="w")
-        self.doc = ctk.CTkEntry(col1, width=200, placeholder_text="12345678-9", corner_radius=8, border_color=COLORS["purple"])
-        self.doc.pack(anchor="w", pady=(5, 15))
-
-        ctk.CTkLabel(col1, text="Razón Social / Nombre", font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).pack(anchor="w")
-        self.name = ctk.CTkEntry(col1, width=280, placeholder_text="Nombre del cliente", corner_radius=8, border_color=COLORS["purple"])
-        self.name.pack(anchor="w", pady=(5, 15))
-
-        col2 = ctk.CTkFrame(fields, fg_color="transparent")
-        col2.pack(side="left", fill="both", expand=True, padx=(0, 20))
-
-        ctk.CTkLabel(col2, text="Teléfono", font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).pack(anchor="w")
-        self.phone = ctk.CTkEntry(col2, width=180, placeholder_text="0999 XXX XXX", corner_radius=8, border_color=COLORS["purple"])
-        self.phone.pack(anchor="w", pady=(5, 15))
-
-        ctk.CTkLabel(col2, text="Dirección", font=ctk.CTkFont(size=12), text_color=COLORS["gray"]).pack(anchor="w")
-        self.address = ctk.CTkEntry(col2, width=250, placeholder_text="Dirección completa", corner_radius=8, border_color=COLORS["purple"])
-        self.address.pack(anchor="w", pady=(5, 15))
-
-        actions = ctk.CTkFrame(fields, fg_color="transparent")
-        actions.pack(side="left", fill="both", expand=True)
-
-        ctk.CTkButton(
-            actions,
-            text="✓ Registrar Cliente",
-            command=self.add_client,
-            fg_color=COLORS["medium"],
-            hover_color=COLORS["dark"],
-            text_color="white",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            corner_radius=8,
-            height=40
-        ).pack(anchor="w", pady=30)
-
-        self.message = ctk.CTkLabel(actions, text="", font=ctk.CTkFont(size=13))
-        self.message.pack(anchor="w", pady=(5, 0))
-
-        table_card = ctk.CTkFrame(main, fg_color=COLORS["card"], corner_radius=16)
-        table_card.pack(fill="both", expand=True)
-
-        # Buscador
-        search_frame = ctk.CTkFrame(table_card, fg_color="transparent")
-        search_frame.pack(fill="x", padx=25, pady=(15, 10))
-
-        search_box = ctk.CTkFrame(search_frame, fg_color="#F3F4F6", corner_radius=10)
-        search_box.pack(side="left", fill="x", expand=True)
-
-        self.search_var = ctk.StringVar()
-        self.search_var.trace("w", lambda *e: self.load_clients())
-        ctk.CTkEntry(search_box, textvariable=self.search_var, placeholder_text="🔍 Buscar por nombre, documento...", fg_color="transparent", border_width=0, corner_radius=10).pack(fill="x", padx=12, pady=8)
-
-        ctk.CTkLabel(
-            table_card,
-            text="Clientes Registrados",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=COLORS["dark"]
-        ).pack(anchor="w", padx=25, pady=(15, 5))
-
-        ctk.CTkFrame(table_card, height=1, fg_color="#E5E7EB").pack(fill="x", padx=25)
-
-        self.table = ctk.CTkScrollableFrame(table_card, fg_color="transparent")
-        self.table.pack(fill="both", expand=True, padx=20, pady=(0, 15))
-
-        # Header tabla
-        header_frame = ctk.CTkFrame(self.table, fg_color="#F8FAFC", corner_radius=10)
-        header_frame.pack(fill="x", pady=(0, 5))
-        headers = [("Documento", 1), ("Nombre", 2), ("Teléfono", 1), ("Dirección", 2), ("Acciones", 1)]
-        for i, (h, span) in enumerate(headers):
-            f = ctk.CTkFrame(header_frame, fg_color="transparent")
-            f.grid(row=0, column=i, sticky="ew", padx=5, pady=5)
-            ctk.CTkLabel(f, text=h, font=ctk.CTkFont(size=10, weight="bold"), text_color="#6B7280").pack()
-        header_frame.grid_columnconfigure(0, weight=1)
-        header_frame.grid_columnconfigure(1, weight=2)
-        header_frame.grid_columnconfigure(2, weight=1)
-        header_frame.grid_columnconfigure(3, weight=2)
-        header_frame.grid_columnconfigure(4, weight=1)
-
-        self.clients_list = ctk.CTkFrame(self.table, fg_color="transparent")
-        self.clients_list.pack(fill="x")
-
+    def refresh(self):
         self.load_clients()
 
+    def build_ui(self):
+        pad = SIZES["pad_large"]
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=pad, pady=pad)
+
+        self._build_stat_cards(content)
+        self._build_main_panel(content)
+
+    # ── Stat cards ────────────────────────────────────────────────────────────
+
+    def _build_stat_cards(self, parent):
+        stats = self._load_stats()
+        row = ctk.CTkFrame(parent, fg_color="transparent")
+        row.pack(fill="x", pady=(0, SIZES["pad"]))
+        for i in range(3):
+            row.grid_columnconfigure(i, weight=1)
+
+        data = [
+            ("Total Clientes",  stats["total"],         "#EFF6FF", "#2563EB", "👥"),
+            ("Con Máquinas",    stats["con_maquinas"],  "#F0FDF4", "#16A34A", "🔧"),
+            ("Sin Máquinas",    stats["sin_maquinas"],  "#FFFBEB", "#D97706", "📋"),
+        ]
+        for i, args in enumerate(data):
+            _stat_card(row, i, *args)
+
+    # ── Main panel ────────────────────────────────────────────────────────────
+
+    def _build_main_panel(self, parent):
+        main = ctk.CTkFrame(parent, fg_color="transparent")
+        main.pack(fill="both", expand=True)
+        main.grid_rowconfigure(0, weight=1)
+        main.grid_columnconfigure(0, weight=1)
+        main.grid_columnconfigure(1, weight=2)
+
+        self._build_form(main)
+        self._build_list(main)
+
+    # ── Form ──────────────────────────────────────────────────────────────────
+
+    def _build_form(self, parent):
+        card = ctk.CTkFrame(parent, fg_color=UI_COLORS.CARD,
+                            corner_radius=SIZES["card_radius"],
+                            border_width=1, border_color=UI_COLORS.BORDER)
+        card.grid(row=0, column=0, sticky="nsew", padx=(0, SIZES["pad"]))
+
+        ctk.CTkLabel(card, text="Nuevo Cliente",
+                     font=ctk.CTkFont(size=_FS["large"], weight="bold"),
+                     text_color=UI_COLORS.TEXT).pack(
+            anchor="w", padx=SIZES["pad_large"],
+            pady=(SIZES["pad_large"], SIZES["pad_small"]))
+
+        ctk.CTkFrame(card, height=1, fg_color=UI_COLORS.BORDER_SUBTLE).pack(
+            fill="x", padx=SIZES["pad_large"], pady=(0, SIZES["pad_small"]))
+
+        fields = ctk.CTkFrame(card, fg_color="transparent")
+        fields.pack(fill="x", padx=SIZES["pad_large"])
+
+        self._lbl(fields, "Documento (RIF/RUT)")
+        doc_row = ctk.CTkFrame(fields, fg_color="transparent")
+        doc_row.pack(fill="x", pady=(0, SIZES["pad"]))
+        doc_row.grid_columnconfigure(1, weight=1)
+
+        self.doc_prefix_var = ctk.StringVar(value="J-")
+        ctk.CTkSegmentedButton(
+            doc_row,
+            values=["J-", "C-"],
+            variable=self.doc_prefix_var,
+            width=80,
+            height=SIZES["entry_height"],
+            corner_radius=SIZES["button_radius"],
+            fg_color=UI_COLORS.BORDER_SUBTLE,
+            selected_color=UI_COLORS.PRIMARY,
+            selected_hover_color=UI_COLORS.SECONDARY,
+            unselected_color=UI_COLORS.BORDER_SUBTLE,
+            unselected_hover_color=UI_COLORS.BORDER,
+            text_color=UI_COLORS.TEXT,
+        ).grid(row=0, column=0, sticky="w", padx=(0, SIZES["pad_small"]))
+
+        _vcmd = (self.register(lambda P: P == "" or P.isdigit()), "%P")
+        self.doc_entry = self._entry(doc_row, "12345678-9")
+        self.doc_entry.configure(validate="key", validatecommand=_vcmd)
+        self.doc_entry.grid(row=0, column=1, sticky="ew")
+        self.doc_entry.bind("<KeyRelease>", lambda e: self.doc_entry.configure(border_color=UI_COLORS.BORDER))
+
+        self._lbl(fields, "Nombre / Razón Social")
+        self.name_entry = self._entry(fields, "Empresa SA")
+        self.name_entry.pack(fill="x", pady=(0, SIZES["pad"]))
+        self.name_entry.bind("<KeyRelease>", lambda e: self.name_entry.configure(border_color=UI_COLORS.BORDER))
+
+        self._lbl(fields, "Teléfono")
+        self.phone_entry = self._entry(fields, "04140000000")
+        self.phone_entry.configure(validate="key", validatecommand=_vcmd)
+        self.phone_entry.pack(fill="x", pady=(0, SIZES["pad"]))
+
+        self._lbl(fields, "Dirección")
+        self.address_entry = self._entry(fields, "Dirección completa")
+        self.address_entry.pack(fill="x", pady=(0, SIZES["pad_large"]))
+
+        ctk.CTkButton(
+            card, text="✓  Registrar Cliente",
+            command=self.add_client,
+            fg_color=UI_COLORS.PRIMARY, hover_color=UI_COLORS.SECONDARY,
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=_FS["body"], weight="bold"),
+            corner_radius=SIZES["button_radius"],
+            height=SIZES["button_height"],
+        ).pack(fill="x", padx=SIZES["pad_large"], pady=(0, SIZES["pad_small"]))
+
+        self.message = ctk.CTkLabel(card, text="",
+                                    font=ctk.CTkFont(size=_FS["tiny"]))
+        self.message.pack(padx=SIZES["pad_large"], pady=(0, SIZES["pad"]))
+
+    # ── List ──────────────────────────────────────────────────────────────────
+
+    def _build_list(self, parent):
+        card = ctk.CTkFrame(parent, fg_color=UI_COLORS.CARD,
+                            corner_radius=SIZES["card_radius"],
+                            border_width=1, border_color=UI_COLORS.BORDER)
+        card.grid(row=0, column=1, sticky="nsew", padx=(SIZES["pad"], 0))
+
+        hdr = ctk.CTkFrame(card, fg_color="transparent")
+        hdr.pack(fill="x", padx=SIZES["pad_large"],
+                 pady=(SIZES["pad_large"], SIZES["pad_small"]))
+
+        ctk.CTkLabel(hdr, text="Clientes",
+                     font=ctk.CTkFont(size=_FS["large"], weight="bold"),
+                     text_color=UI_COLORS.TEXT).pack(side="left")
+
+        self.count_label = ctk.CTkLabel(hdr, text="",
+                                        font=ctk.CTkFont(size=_FS["small"]),
+                                        text_color=UI_COLORS.TEXT_MUTED)
+        self.count_label.pack(side="right", padx=(0, SIZES["pad_small"]))
+
+        sw = ctk.CTkFrame(hdr, fg_color="#F8FAFC",
+                          corner_radius=SIZES["button_radius"],
+                          border_width=1, border_color=UI_COLORS.BORDER)
+        sw.pack(side="right", padx=(0, SIZES["pad_small"]))
+        self.search_var = ctk.StringVar()
+        self.search_var.trace("w", lambda *e: self.load_clients())
+        ctk.CTkEntry(sw, textvariable=self.search_var,
+                     placeholder_text="🔍  Buscar...",
+                     fg_color="transparent", border_width=0,
+                     text_color=UI_COLORS.TEXT,
+                     placeholder_text_color=UI_COLORS.TEXT_MUTED,
+                     width=180).pack(padx=SIZES["pad_small"], pady=4)
+
+        ctk.CTkFrame(card, height=1, fg_color=UI_COLORS.BORDER_SUBTLE).pack(
+            fill="x", padx=SIZES["pad_large"], pady=(0, SIZES["pad_small"]))
+
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            card, fg_color="transparent",
+            scrollbar_button_color=UI_COLORS.BORDER)
+        self.scroll_frame.pack(fill="both", expand=True,
+                               padx=SIZES["pad_large"],
+                               pady=(0, SIZES["pad_large"]))
+        self.load_clients()
+
+    # ── Data ops ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _load_stats():
+        s = {"total": 0, "con_maquinas": 0, "sin_maquinas": 0}
+        if not os.path.exists(DB_PATH):
+            return s
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            s["total"]        = conn.execute("SELECT COUNT(*) FROM clients").fetchone()[0]
+            s["con_maquinas"] = conn.execute(
+                "SELECT COUNT(DISTINCT client_id) FROM machines WHERE client_id IS NOT NULL"
+            ).fetchone()[0]
+            s["sin_maquinas"] = s["total"] - s["con_maquinas"]
+            conn.close()
+        except Exception as e:
+            log_error("clients_view", "_load_stats", e)
+        return s
+
     def add_client(self):
-        doc = self.doc.get()
-        name = self.name.get()
-        phone = self.phone.get()
-        address = self.address.get()
+        self.doc_entry.configure(border_color=UI_COLORS.BORDER)
+        self.name_entry.configure(border_color=UI_COLORS.BORDER)
+        self.message.configure(text="")
 
-        if not doc or not name:
-            self.message.configure(text="⚠ Documento y nombre son obligatorios", text_color=COLORS["red"])
+        raw_doc = self.doc_entry.get().strip()
+        doc     = self.doc_prefix_var.get() + raw_doc
+        name    = self.name_entry.get().strip()
+        phone   = self.phone_entry.get().strip()
+        address = self.address_entry.get().strip()
+
+        errors = []
+        if not raw_doc:
+            self.doc_entry.configure(border_color=UI_COLORS.DANGER)
+            errors.append("Documento")
+        if not name:
+            self.name_entry.configure(border_color=UI_COLORS.DANGER)
+            errors.append("Nombre")
+        if errors:
+            self.message.configure(
+                text=f"⚠  Obligatorio: {', '.join(errors)}",
+                text_color=UI_COLORS.DANGER,
+            )
             return
-
-        # Validación formato RUT básico (X.XXX.XXX-X o similar)
-        doc_clean = doc.replace(".", "").replace("-", "").strip()
-        if len(doc_clean) < 7:
-            self.message.configure(text="⚠ Documento inválido (mínimo 7 dígitos)", text_color=COLORS["red"])
-            return
-
-        # Validación básica de teléfono
-        if phone:
-            phone_clean = phone.replace(" ", "").replace("-", "").replace("+", "")
-            if not phone_clean.isdigit() or len(phone_clean) < 7:
-                self.message.configure(text="⚠ Teléfono inválido", text_color=COLORS["red"])
-                return
 
         try:
             conn = sqlite3.connect(DB_PATH)
             conn.execute(
                 "INSERT INTO clients (document_id, name, address, phone) VALUES (?, ?, ?, ?)",
-                (doc, name, address, phone)
+                (doc, name, address, phone),
             )
             conn.commit()
             conn.close()
-            self.message.configure(text="✓ Cliente registrado exitosamente", text_color=COLORS["green"])
-            self.doc.delete(0, 'end')
-            self.name.delete(0, 'end')
-            self.phone.delete(0, 'end')
-            self.address.delete(0, 'end')
+            self.doc_entry.delete(0, "end")
+            self.name_entry.delete(0, "end")
+            self.phone_entry.delete(0, "end")
+            self.address_entry.delete(0, "end")
+            self.doc_prefix_var.set("J-")
+            self.message.configure(text="✓  Cliente registrado",
+                                   text_color=UI_COLORS.GREEN)
+            logger.info(f"Cliente registrado: {doc}")
             self.load_clients()
         except sqlite3.IntegrityError:
-            self.message.configure(text="⚠ El documento ya existe en el sistema", text_color=COLORS["red"])
+            self.doc_entry.configure(border_color=UI_COLORS.DANGER)
+            self.message.configure(text="⚠  El documento ya existe",
+                                   text_color=UI_COLORS.DANGER)
+        except Exception as e:
+            log_error("clients_view", "add_client", e)
+            self.message.configure(text="⚠  Error interno",
+                                   text_color=UI_COLORS.DANGER)
 
     def load_clients(self):
-        for w in self.clients_list.winfo_children():
+        for w in self.scroll_frame.winfo_children():
             w.destroy()
 
         if not os.path.exists(DB_PATH):
-            ctk.CTkLabel(self.clients_list, text="No hay clientes", text_color="#9CA3AF").pack(pady=20)
             self.count_label.configure(text="0 clientes")
             return
 
-        conn = sqlite3.connect(DB_PATH)
-        busq = self.search_var.get().strip().lower()
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            busq = self.search_var.get().strip().lower()
+            wc, params = "", []
+            if busq:
+                wc = "WHERE LOWER(name) LIKE ? OR LOWER(document_id) LIKE ?"
+                lk = f"%{busq}%"
+                params = [lk, lk]
 
-        where_clause = ""
-        params = []
-        if busq:
-            where_clause = "WHERE LOWER(name) LIKE ? OR LOWER(document_id) LIKE ?"
-            like = f"%{busq}%"
-            params.extend([like, like])
+            rows = conn.execute(
+                f"SELECT id, document_id, name, phone, address FROM clients {wc} ORDER BY id DESC",
+                params,
+            ).fetchall()
+            conn.close()
 
-        rows = conn.execute(f"SELECT id, document_id, name, phone, address FROM clients {where_clause} ORDER BY id DESC", params).fetchall()
-        conn.close()
+            self.count_label.configure(
+                text=f"{len(rows)} cliente{'s' if len(rows) != 1 else ''}")
 
-        if not rows:
-            ctk.CTkLabel(self.clients_list, text="🔍 No se encontraron clientes", text_color="#9CA3AF").pack(pady=20)
-            self.count_label.configure(text="0 clientes")
-            return
+            if not rows:
+                ctk.CTkLabel(self.scroll_frame, text="No hay clientes",
+                             font=ctk.CTkFont(size=_FS["body"]),
+                             text_color=UI_COLORS.TEXT_MUTED).pack(pady=30)
+                return
+            for r in rows:
+                self._client_card(r)
+        except Exception as e:
+            log_error("clients_view", "load_clients", e)
+            ctk.CTkLabel(self.scroll_frame, text="⚠  Error al cargar clientes",
+                         font=ctk.CTkFont(size=_FS["body"]),
+                         text_color=UI_COLORS.DANGER).pack(pady=30)
 
-        self.count_label.configure(text=f"{len(rows)} cliente{'s' if len(rows)!=1 else ''}")
+    def _client_card(self, row):
+        cid, doc, name, phone, addr = row
 
-        for r in rows:
-            cid, doc, name, phone, addr = r
-            row_fg = ctk.CTkFrame(self.clients_list, fg_color="#F8FAFC", corner_radius=10)
-            row_fg.pack(fill="x", pady=4)
-            row_fg.bind("<Enter>", lambda e, f=row_fg: f.configure(fg_color="#F1F5F9"))
-            row_fg.bind("<Leave>", lambda e, f=row_fg: f.configure(fg_color="#F8FAFC"))
+        card = ctk.CTkFrame(self.scroll_frame, fg_color=UI_COLORS.CARD,
+                            corner_radius=SIZES["card_radius"],
+                            border_width=1, border_color=UI_COLORS.BORDER)
+        card.pack(fill="x", pady=5)
 
-            row_frame = ctk.CTkFrame(row_fg, fg_color="transparent")
-            row_frame.pack(fill="x", padx=10, pady=8)
+        c = ctk.CTkFrame(card, fg_color="transparent")
+        c.pack(fill="both", expand=True, padx=SIZES["pad"], pady=SIZES["pad_small"])
 
-            row_frame.grid_columnconfigure(0, weight=1)
-            row_frame.grid_columnconfigure(1, weight=2)
-            row_frame.grid_columnconfigure(2, weight=1)
-            row_frame.grid_columnconfigure(3, weight=2)
-            row_frame.grid_columnconfigure(4, weight=1)
+        left = ctk.CTkFrame(c, fg_color="transparent")
+        left.pack(side="left", fill="both", expand=True)
 
-            ctk.CTkLabel(row_frame, text=doc, font=ctk.CTkFont(size=11, weight="bold"), text_color=COLORS["dark"]).grid(row=0, column=0, sticky="w", padx=5)
-            ctk.CTkLabel(row_frame, text=name, font=ctk.CTkFont(size=11), text_color=COLORS["dark"]).grid(row=0, column=1, sticky="w", padx=5)
-            ctk.CTkLabel(row_frame, text=phone, font=ctk.CTkFont(size=11), text_color=COLORS["gray"]).grid(row=0, column=2, sticky="w", padx=5)
-            ctk.CTkLabel(row_frame, text=addr or "-", font=ctk.CTkFont(size=11), text_color=COLORS["gray"]).grid(row=0, column=3, sticky="w", padx=5)
+        avatar = ctk.CTkFrame(left, width=36, height=36,
+                              fg_color="#EFF6FF", corner_radius=18)
+        avatar.pack(side="left")
+        avatar.pack_propagate(False)
+        ctk.CTkLabel(avatar, text=name[0].upper() if name else "?",
+                     font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color="#2563EB").place(relx=0.5, rely=0.5, anchor="center")
 
-            btn_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
-            btn_frame.grid(row=0, column=4, sticky="e", padx=5)
-            ctk.CTkButton(btn_frame, text="✏️", width=30, height=24, corner_radius=6, font=ctk.CTkFont(size=11), command=lambda c=cid: self.edit_client(c), fg_color=COLORS["gold"], hover_color="#C78A32", text_color="white").pack(side="left", padx=2)
-            ctk.CTkButton(btn_frame, text="🗑️", width=30, height=24, corner_radius=6, font=ctk.CTkFont(size=11), command=lambda c=cid, n=name: self.delete_client(c, n), fg_color="#EF4444", hover_color="#DC2626", text_color="white").pack(side="left", padx=2)
+        info = ctk.CTkFrame(left, fg_color="transparent")
+        info.pack(side="left", padx=(10, 0))
+        ctk.CTkLabel(info, text=name,
+                     font=ctk.CTkFont(size=_FS["body"], weight="bold"),
+                     text_color=UI_COLORS.TEXT).pack(anchor="w")
+        ctk.CTkLabel(info, text=doc,
+                     font=ctk.CTkFont(size=_FS["small"]),
+                     text_color=UI_COLORS.TEXT_SECONDARY).pack(anchor="w", pady=(2, 0))
+        if phone:
+            ctk.CTkLabel(info, text=f"📞 {phone}",
+                         font=ctk.CTkFont(size=_FS["tiny"]),
+                         text_color=UI_COLORS.TEXT_MUTED).pack(anchor="w", pady=(2, 0))
 
-    def delete_client(self, cid, name):
-        top = ctk.CTkToplevel(self)
-        top.title("Confirmar eliminación")
-        top.geometry("320x160")
-        top.transient(self.master)
-        top.grab_set()
-        ctk.CTkLabel(top, text=f"¿Eliminar cliente?", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(16,4))
-        ctk.CTkLabel(top, text=name, font=ctk.CTkFont(size=11), text_color="#6B7280").pack()
-        ctk.CTkLabel(top, text="Esta acción no se puede deshacer", font=ctk.CTkFont(size=10), text_color="#EF4444").pack(pady=(4,12))
-        btns = ctk.CTkFrame(top, fg_color="transparent")
-        btns.pack()
-        ctk.CTkButton(btns, text="Cancelar", command=top.destroy, width=80, corner_radius=6, fg_color="#6B7280", hover_color="#4B5563").pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="Eliminar", width=80, corner_radius=6, fg_color="#EF4444", hover_color="#DC2626", text_color="white", command=lambda: (self._do_delete_client(cid), top.destroy())).pack(side="left", padx=4)
+        del_btn = ctk.CTkButton(c, text="🗑️",
+                      command=lambda ci=cid: self.eliminar_cliente(ci),
+                      width=32, height=32, corner_radius=6,
+                      fg_color="#FEF2F2", hover_color="#FECACA",
+                      text_color=UI_COLORS.DANGER,
+                      font=ctk.CTkFont(size=_FS["body"]))
+        del_btn.pack(side="right", pady=4)
 
-    def _do_delete_client(self, cid):
+    def eliminar_cliente(self, cid):
         try:
             conn = sqlite3.connect(DB_PATH)
             conn.execute("DELETE FROM clients WHERE id = ?", (cid,))
             conn.commit()
             conn.close()
-            self.message.configure(text="✓ Cliente eliminado", text_color=COLORS["green"])
+            logger.info(f"Cliente eliminado: {cid}")
             self.load_clients()
         except Exception as e:
-            self.message.configure(text=f"⚠ Error: {e}", text_color=COLORS["red"])
+            log_error("clients_view", "eliminar_cliente", e)
+            self.message.configure(text="⚠  Error al eliminar",
+                                   text_color=UI_COLORS.DANGER)
 
-    def edit_client(self, cid):
-        top = ctk.CTkToplevel(self)
-        top.title("Editar Cliente")
-        top.geometry("400x340")
-        top.transient(self.master)
-        top.grab_set()
-        conn = sqlite3.connect(DB_PATH)
-        r = conn.execute("SELECT document_id, name, phone, address FROM clients WHERE id = ?", (cid,)).fetchone()
-        conn.close()
-        if not r:
-            return
-        doc_o, name_o, phone_o, addr_o = r
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
-        f = ctk.CTkFrame(top, fg_color="transparent")
-        f.pack(fill="both", expand=True, padx=20, pady=20)
+    @staticmethod
+    def _lbl(parent, text):
+        ctk.CTkLabel(parent, text=text,
+                     font=ctk.CTkFont(size=_FS["small"], weight="bold"),
+                     text_color=UI_COLORS.TEXT_SECONDARY).pack(anchor="w", pady=(0, 4))
 
-        ctk.CTkLabel(f, text="Documento", font=ctk.CTkFont(size=11), text_color=COLORS["gray"]).pack(anchor="w")
-        e_doc = ctk.CTkEntry(f, width=250, corner_radius=8)
-        e_doc.insert(0, doc_o)
-        e_doc.pack(fill="x", pady=(2,10))
-
-        ctk.CTkLabel(f, text="Nombre/Razón Social", font=ctk.CTkFont(size=11), text_color=COLORS["gray"]).pack(anchor="w")
-        e_name = ctk.CTkEntry(f, width=280, corner_radius=8)
-        e_name.insert(0, name_o)
-        e_name.pack(fill="x", pady=(2,10))
-
-        ctk.CTkLabel(f, text="Teléfono", font=ctk.CTkFont(size=11), text_color=COLORS["gray"]).pack(anchor="w")
-        e_phone = ctk.CTkEntry(f, width=200, corner_radius=8)
-        e_phone.insert(0, phone_o or "")
-        e_phone.pack(fill="x", pady=(2,10))
-
-        ctk.CTkLabel(f, text="Dirección", font=ctk.CTkFont(size=11), text_color=COLORS["gray"]).pack(anchor="w")
-        e_addr = ctk.CTkEntry(f, width=280, corner_radius=8)
-        e_addr.insert(0, addr_o or "")
-        e_addr.pack(fill="x", pady=(2,12))
-
-        msg = ctk.CTkLabel(f, text="", font=ctk.CTkFont(size=11))
-        msg.pack()
-
-        def save():
-            nd = e_doc.get().strip()
-            nn = e_name.get().strip()
-            np = e_phone.get().strip()
-            na = e_addr.get().strip()
-            if not nd or not nn:
-                msg.configure(text="⚠ Complete campos requeridos", text_color=COLORS["red"])
-                return
-            try:
-                conn = sqlite3.connect(DB_PATH)
-                conn.execute("UPDATE clients SET document_id=?, name=?, phone=?, address=? WHERE id=?",
-                             (nd, nn, np or None, na or None, cid))
-                conn.commit()
-                conn.close()
-                top.destroy()
-                self.message.configure(text="✓ Cliente actualizado", text_color=COLORS["green"])
-                self.load_clients()
-            except sqlite3.IntegrityError:
-                msg.configure(text="⚠ Documento ya existe", text_color=COLORS["red"])
-
-        ctk.CTkButton(f, text="Guardar cambios", command=save, fg_color=COLORS["medium"], hover_color=COLORS["dark"], text_color="white", corner_radius=8, height=36).pack(pady=4)
+    @staticmethod
+    def _entry(parent, placeholder):
+        return ctk.CTkEntry(parent, placeholder_text=placeholder,
+                            height=SIZES["entry_height"],
+                            corner_radius=SIZES["button_radius"],
+                            border_width=SIZES["border_width"],
+                            border_color=UI_COLORS.BORDER,
+                            fg_color="#F8FAFC",
+                            text_color=UI_COLORS.TEXT,
+                            placeholder_text_color=UI_COLORS.TEXT_MUTED)

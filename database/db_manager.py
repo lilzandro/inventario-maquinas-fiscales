@@ -35,7 +35,9 @@ def create_tables():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            role TEXT NOT NULL
+            role TEXT NOT NULL,
+            first_name TEXT,
+            last_name TEXT
         )
     ''')
 
@@ -92,16 +94,35 @@ def create_tables():
              service_date TEXT NOT NULL, -- Format YYYY-MM-DD
              next_maintenance_date TEXT, -- Format YYYY-MM-DD
              remarks TEXT,
+             completion_date TEXT,       -- Format YYYY-MM-DD, set when service is marked done
+             applied_by TEXT,            -- username of who registered the service
              FOREIGN KEY (machine_id) REFERENCES machines (id) ON DELETE CASCADE
         )
     ''')
 
-    # Insertar usuario administrador por defecto si la base de datos es nueva
+    # Índices para búsquedas en inventario
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_machines_status   ON machines(status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_machines_model    ON machines(model_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_machine  ON services(machine_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_date     ON services(service_date)")
+
+    # Usuario administrador por defecto
     cursor.execute("SELECT * FROM users WHERE username='admin'")
     if not cursor.fetchone():
         cursor.execute(
-            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-            ('admin', hash_password('admin123'), 'admin')
+            "INSERT INTO users (username, password, role, first_name, last_name) VALUES (?, ?, ?, ?, ?)",
+            ('admin', hash_password('admin123'), 'admin', 'Administrador', 'Sistema')
+        )
+
+    # Proveedores autorizados (datos previos al uso del sistema)
+    _distribuidores = [
+        ("The Factory HKA",      ""),
+        ("Corporación ECRS C.A", ""),
+    ]
+    for nombre, contacto in _distribuidores:
+        cursor.execute(
+            "INSERT OR IGNORE INTO distributors (name, contact) VALUES (?, ?)",
+            (nombre, contacto)
         )
 
     conn.commit()

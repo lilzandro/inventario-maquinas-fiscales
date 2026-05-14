@@ -1,1 +1,9 @@
 __pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+inventario.db
+database/inventario.db
+logs/
+*.log

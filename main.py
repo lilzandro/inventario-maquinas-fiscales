@@ -1,19 +1,21 @@
 import customtkinter as ctk
+from theme import AppTheme, apply_global_theme, UI_COLORS
 from ui.login_view import LoginView
-from ui.dashboard_view import DashboardView, COLORS
+from ui.dashboard_view import DashboardView
 
-ctk.set_appearance_mode("Light")
-ctk.set_default_color_theme("blue")
+ctk.deactivate_automatic_dpi_awareness()
+apply_global_theme()
 
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Sistema de Gestión de Máquinas Fiscales")
+        self.configure(fg_color=UI_COLORS.BASE)
+        
+        self.title("Adamo — Corporación Adamo Gentile C.A")
         self.geometry("1024x768")
         self.minsize(800, 600)
-        self.configure(fg_color=COLORS["bg_gray"])
 
         self.current_view = None
         self.show_login()
