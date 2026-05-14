@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SistemaFiscal – Gestión de Inventario y Máquinas Fiscales</title>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #F0F4F8; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+  input, select, textarea, button { font-family: inherit; }
+  * { -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ═══════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════
+const SAMPLE_PRODUCTS = [
+  { id: "SKU-001", name: "Impresora Fiscal Bixolon SRP-350", stock: 12, min: 5, price: 850, supplier: "TechVenezuela", img: null },
+  { id: "SKU-002", name: "Papel Térmico 80mm x 50m", stock: 3, min: 10, price: 12, supplier: "PaperMax", img: null },
+  { id: "SKU-003", name: "Fiscal Printer Epson TM-T20III", stock: 8, min: 4, price: 620, supplier: "DistribuSoft", img: null },
+  { id: "SKU-004", name: "Cable USB Tipo A-B 1.8m", stock: 45, min: 10, price: 5, supplier: "CableShop", img: null },
+  { id: "SKU-005", name: "Lector Código de Barras Honeywell", stock: 7, min: 3, price: 180, supplier: "TechVenezuela", img: null },
+  { id: "SKU-006", name: "Rollo Papel 57mm x 30m", stock: 2, min: 20, price: 8, supplier: "PaperMax", img: null },
+  { id: "SKU-007", name: "Memoria RAM 8GB DDR4", stock: 15, min: 5, price: 45, supplier: "DistribuSoft", img: null },
+  { id: "SKU-008", name: "Tinta Impresora HP Negra", stock: 0, min: 5, price: 22, supplier: "OfficeSupply", img: null },
+];
+
+const SAMPLE_MACHINES = [
+  { id: "MF-001", model: "Bixolon SRP-350", serial: "SRP35020240101", client: "Farmacia Central", status: "activa", lastService: "2025-03-10", nextService: "2025-09-10" },
+  { id: "MF-002", model: "Epson TM-T20III", serial: "EPT2020230815", client: "Supermercado El Sol", status: "en_reparacion", lastService: "2025-04-01", nextService: "2025-10-01" },
+  { id: "MF-003", model: "Bixolon SRP-350", serial: "SRP35020221205", client: "Bodegón Premium", status: "activa", lastService: "2025-02-20", nextService: "2025-08-20" },
+  { id: "MF-004", model: "Star TSP143III", serial: "STAR14320231001", client: "Panadería La Esperanza", status: "dada_de_baja", lastService: "2024-11-05", nextService: "—" },
+  { id: "MF-005", model: "Epson TM-T88VI", serial: "EPT88V20240601", client: "Ferretería Los Andes", status: "activa", lastService: "2025-01-15", nextService: "2025-07-15" },
+  { id: "MF-006", model: "Bixolon SRP-500", serial: "SRP50020240901", client: "Clínica San José", status: "activa", lastService: "2025-04-10", nextService: "2025-10-10" },
+];
+
+const SAMPLE_SERVICES = [
+  { id: "SRV-001", machine: "MF-002", client: "Supermercado El Sol", tech: "Carlos Méndez", issue: "Error de impresión, papel atascado", status: 1, created: "2025-04-28", priority: "alta" },
+  { id: "SRV-002", machine: "MF-001", client: "Farmacia Central", tech: "Luis Rodríguez", issue: "Mantenimiento preventivo programado", status: 2, created: "2025-04-25", priority: "media" },
+  { id: "SRV-003", machine: "MF-005", client: "Ferretería Los Andes", tech: "—", issue: "Pantalla no enciende", status: 0, created: "2025-04-30", priority: "alta" },
+  { id: "SRV-004", machine: "MF-003", client: "Bodegón Premium", tech: "Ana Torres", issue: "Actualización firmware", status: 3, created: "2025-04-20", priority: "baja" },
+  { id: "SRV-005", machine: "MF-006", client: "Clínica San José", tech: "Carlos Méndez", issue: "Cabezal de impresión dañado", status: 2, created: "2025-04-22", priority: "alta" },
+];
+
+const SAMPLE_CLIENTS = [
+  { id: "CLI-001", name: "Farmacia Central", rif: "J-12345678-9", phone: "0412-555-1234", email: "farmacia@central.ve", machines: 1, city: "Caracas" },
+  { id: "CLI-002", name: "Supermercado El Sol", rif: "J-98765432-1", phone: "0424-555-5678", email: "elsol@super.ve", machines: 1, city: "Maracay" },
+  { id: "CLI-003", name: "Bodegón Premium", rif: "J-45678901-2", phone: "0416-555-9012", email: "bodegon@premium.ve", machines: 1, city: "Valencia" },
+  { id: "CLI-004", name: "Panadería La Esperanza", rif: "J-23456789-3", phone: "0426-555-3456", email: "laesperanza@pan.ve", machines: 1, city: "Caracas" },
+  { id: "CLI-005", name: "Ferretería Los Andes", rif: "J-67890123-4", phone: "0414-555-7890", email: "andes@ferreteria.ve", machines: 1, city: "Mérida" },
+  { id: "CLI-006", name: "Clínica San José", rif: "J-11223344-5", phone: "0418-555-2345", email: "sanjose@clinica.ve", machines: 1, city: "Barquisimeto" },
+];
+
+const SAMPLE_SUPPLIERS = [
+  { id: "PRV-001", name: "TechVenezuela C.A.", contact: "Pedro Silva", phone: "0212-555-1010", email: "ventas@techve.com", products: 12, city: "Caracas" },
+  { id: "PRV-002", name: "PaperMax S.A.", contact: "María González", phone: "0241-555-2020", email: "pedidos@papermax.ve", products: 8, city: "Valencia" },
+  { id: "PRV-003", name: "DistribuSoft LLC", contact: "José Ramírez", phone: "0243-555-3030", email: "info@distribusoft.ve", products: 15, city: "Maracay" },
+  { id: "PRV-004", name: "CableShop Venezuela", contact: "Ana Blanco", phone: "0412-555-4040", email: "cables@shop.ve", products: 6, city: "Caracas" },
+  { id: "PRV-005", name: "OfficeSupply Plus", contact: "Carlos Rojas", phone: "0416-555-5050", email: "office@supply.ve", products: 20, city: "Caracas" },
+];
+
+const SERVICE_STEPS = ["Pendiente", "Asignada", "En Proceso", "Completada"];
+
+const machineStatusInfo = {
+  activa: { label: "Activa", variant: "success" },
+  en_reparacion: { label: "En Reparación", variant: "warning" },
+  dada_de_baja: { label: "Dada de Baja", variant: "danger" },
+};
+
+const priorityInfo = {
+  alta: { label: "Alta", variant: "danger" },
+  media: { label: "Media", variant: "warning" },
+  baja: { label: "Baja", variant: "neutral" },
+};
+
+// ═══════════════════════════════════════════════════════
+//  DASHBOARD MODULE
+// ═══════════════════════════════════════════════════════
+const DashboardModule = ({ dashVariant, accentColor }) => {
+  const lowStock = SAMPLE_PRODUCTS.filter(p => p.stock <= p.min).length;
+  const activeServices = SAMPLE_SERVICES.filter(s => s.status < 3).length;
+  const activeMachines = SAMPLE_MACHINES.filter(m => m.status === "activa").length;
+
+  const recentServices = SAMPLE_SERVICES.slice(0, 4);
+  const alertProducts = SAMPLE_PRODUCTS.filter(p => p.stock <= p.min);
+
+  const chartData = [32, 41, 28, 55, 47, 63, 58, 71, 66, 80, 74, 89];
+  const serviceData = [3, 7, 5, 9, 6, 11, 8, 13, 10, 7, 12, 9];
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "24px 28px" }}>
+      <PageHeader
+        title="Dashboard"
+        subtitle={`Bienvenido de vuelta — ${new Date().toLocaleDateString("es-VE", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`}
+        actions={<Button icon="download" variant="secondary" size="sm">Exportar</Button>}
+      />
+
+      {/* STAT CARDS */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+        <StatCard icon="box" iconBg="#EFF6FF" iconColor={accentColor} label="Productos en Inventario" value={SAMPLE_PRODUCTS.length} delta="+3" deltaUp={true} />
+        <StatCard icon="fiscal" iconBg="#F0FDF4" iconColor="#16A34A" label="Máquinas Fiscales Activas" value={activeMachines} delta="+1" deltaUp={true} />
+        <StatCard icon="services" iconBg="#FFFBEB" iconColor="#D97706" label="Servicios en Curso" value={activeServices} delta="-2" deltaUp={false} />
+        <StatCard icon="alert" iconBg="#FEF2F2" iconColor="#DC2626" label="Stock Bajo / Agotado" value={lowStock} delta="+2" deltaUp={false} />
+      </div>
+
+      {dashVariant === "A" && (
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
+          {/* Chart Card */}
+          <div style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>Servicios Realizados</div>
+                <div style={{ fontSize: 12, color: "#94A3B8" }}>Últimos 12 meses</div>
+              </div>
+              <Badge label="2025" variant="default" />
+            </div>
+            <MiniLineChart data={serviceData} color={accentColor} height={80} />
+            <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
+              {["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"].map((m,i) => (
+                <span key={i} style={{ flex: 1, fontSize: 9, color: "#94A3B8", textAlign: "center" }}>{m}</span>
+              ))}
+            </div>
+          </div>
+          {/* Donut-style quick stats */}
+          <div style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A", marginBottom: 16 }}>Estado Máquinas</div>
+            {[
+              { label: "Activas", count: activeMachines, color: "#16A34A", total: SAMPLE_MACHINES.length },
+              { label: "En Reparación", count: SAMPLE_MACHINES.filter(m=>m.status==="en_reparacion").length, color: "#D97706", total: SAMPLE_MACHINES.length },
+              { label: "Dadas de Baja", count: SAMPLE_MACHINES.filter(m=>m.status==="dada_de_baja").length, color: "#DC2626", total: SAMPLE_MACHINES.length },
+            ].map((item, i) => (
+              <div key={i} style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: "#475569" }}>{item.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#0F172A" }}>{item.count}</span>
+                </div>
+                <div style={{ background: "#F1F5F9", borderRadius: 99, height: 6 }}>
+                  <div style={{ background: item.color, borderRadius: 99, height: 6, width: `${(item.count/item.total)*100}%`, transition: "width 0.6s ease" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {dashVariant === "B" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+          {[
+            { label: "Inventario — Valor Total", value: "$18,450", sub: "12 meses promedio", data: [20,35,28,45,40,55,48,60,52,68,64,72], color: accentColor },
+            { label: "Órdenes de Servicio", value: "94 este año", sub: "vs 71 año pasado", data: serviceData, color: "#16A34A" },
+            { label: "Clientes Activos", value: SAMPLE_CLIENTS.length, sub: "+2 este mes", data: [1,1,2,3,3,3,4,4,4,5,6,6], color: "#7C3AED" },
+          ].map((c, i) => (
+            <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+              <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>{c.label}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#0F172A", marginBottom: 2 }}>{c.value}</div>
+              <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 12 }}>{c.sub}</div>
+              <MiniBarChart data={c.data} color={c.color} height={48} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {dashVariant === "C" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div style={{ background: `linear-gradient(135deg, ${accentColor} 0%, #3A7FC1 100%)`, borderRadius: 12, padding: "22px 24px", color: "#fff" }}>
+            <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 8 }}>Resumen del Mes</div>
+            <div style={{ fontSize: 32, fontWeight: 800, marginBottom: 4 }}>94 Servicios</div>
+            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 20 }}>Completados en Abril 2025</div>
+            <MiniLineChart data={serviceData} color="#ffffff" height={60} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {[
+              { label: "Técnicos Activos", value: "4", color: "#EFF6FF", text: accentColor },
+              { label: "Tiempo Prom. Servicio", value: "2.3 días", color: "#F0FDF4", text: "#16A34A" },
+              { label: "Satisfacción", value: "96%", color: "#FAF5FF", text: "#7C3AED" },
+              { label: "Ingresos Mes", value: "$4,820", color: "#FFFBEB", text: "#D97706" },
+            ].map((k, i) => (
+              <div key={i} style={{ background: k.color, borderRadius: 10, padding: "16px", border: "1px solid #E8EDF2" }}>
+                <div style={{ fontSize: 11, color: "#64748B", marginBottom: 6 }}>{k.label}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: k.text }}>{k.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* LOWER SECTION */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Recent Services */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>Servicios Recientes</span>
+            <Badge label={`${activeServices} activos`} variant="warning" />
+          </div>
+          {recentServices.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 0", borderBottom: i < recentServices.length - 1 ? "1px solid #F1F5F9" : "none" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: s.status === 0 ? "#FEF2F2" : s.status === 3 ? "#F0FDF4" : "#FFFBEB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="services" size={16} color={s.status === 0 ? "#DC2626" : s.status === 3 ? "#16A34A" : "#D97706"} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{s.client}</div>
+                <div style={{ fontSize: 11, color: "#94A3B8" }}>{s.issue.slice(0, 40)}...</div>
+              </div>
+              <Badge label={SERVICE_STEPS[s.status]} variant={s.status === 0 ? "danger" : s.status === 3 ? "success" : "warning"} />
+            </div>
+          ))}
+        </div>
+
+        {/* Low Stock Alerts */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>Alertas de Stock</span>
+            <Badge label={`${alertProducts.length} alertas`} variant="danger" />
+          </div>
+          {alertProducts.map((p, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < alertProducts.length - 1 ? "1px solid #F1F5F9" : "none" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: p.stock === 0 ? "#FEF2F2" : "#FFFBEB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="inventory" size={16} color={p.stock === 0 ? "#DC2626" : "#D97706"} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{p.name.slice(0, 32)}...</div>
+                <div style={{ fontSize: 11, color: "#94A3B8" }}>Stock: {p.stock} / Mín: {p.min}</div>
+              </div>
+              <Badge label={p.stock === 0 ? "Agotado" : "Stock bajo"} variant={p.stock === 0 ? "danger" : "warning"} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  INVENTORY MODULE
+// ═══════════════════════════════════════════════════════
+const InventoryModule = ({ accentColor }) => {
+  const [products, setProducts] = useState(SAMPLE_PRODUCTS);
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [form, setForm] = useState({ id: "", name: "", stock: "", min: "", price: "", supplier: "" });
+
+  const filtered = products.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.id.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const openNew = () => {
+    setForm({ id: `SKU-00${products.length + 1}`, name: "", stock: "", min: "", price: "", supplier: "" });
+    setEditItem(null);
+    setModalOpen(true);
+  };
+  const openEdit = (ri) => {
+    const p = filtered[ri];
+    setForm({ ...p });
+    setEditItem(ri);
+    setModalOpen(true);
+  };
+  const saveForm = () => {
+    if (editItem !== null) {
+      setProducts(prev => prev.map(p => p.id === form.id ? { ...form, stock: +form.stock, min: +form.min, price: +form.price } : p));
+    } else {
+      setProducts(prev => [...prev, { ...form, stock: +form.stock, min: +form.min, price: +form.price }]);
+    }
+    setModalOpen(false);
+  };
+  const deleteItem = (ri) => {
+    const p = filtered[ri];
+    setProducts(prev => prev.filter(x => x.id !== p.id));
+  };
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "24px 28px" }}>
+      <PageHeader title="Inventario de Productos" subtitle={`${products.length} productos registrados`}
+        actions={<Button icon="plus" onClick={openNew}>Nuevo Producto</Button>} />
+
+      {/* Summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+        <StatCard icon="box" iconBg="#EFF6FF" iconColor={accentColor} label="Total Productos" value={products.length} />
+        <StatCard icon="check" iconBg="#F0FDF4" iconColor="#16A34A" label="En Stock Normal" value={products.filter(p=>p.stock>p.min).length} />
+        <StatCard icon="alert" iconBg="#FFFBEB" iconColor="#D97706" label="Stock Bajo" value={products.filter(p=>p.stock>0&&p.stock<=p.min).length} />
+        <StatCard icon="close" iconBg="#FEF2F2" iconColor="#DC2626" label="Agotados" value={products.filter(p=>p.stock===0).length} />
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #F1F5F9", display: "flex", gap: 8, alignItems: "center" }}>
+          <SearchBar placeholder="Buscar por nombre o código..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Button icon="filter" variant="secondary" size="sm">Filtrar</Button>
+          <Button icon="download" variant="secondary" size="sm">Exportar</Button>
+        </div>
+        <Table
+          columns={["Código", "Producto", "Stock", "Mín.", "Precio", "Proveedor", "Estado"]}
+          rows={filtered.map(p => [
+            <span style={{ fontFamily: "monospace", fontSize: 12, color: "#64748B" }}>{p.id}</span>,
+            <span style={{ fontWeight: 600, color: "#0F172A" }}>{p.name}</span>,
+            <span style={{ fontWeight: 700, color: p.stock === 0 ? "#DC2626" : p.stock <= p.min ? "#D97706" : "#16A34A" }}>{p.stock}</span>,
+            p.min,
+            <span>${p.price}</span>,
+            p.supplier,
+            <Badge label={p.stock === 0 ? "Agotado" : p.stock <= p.min ? "Stock bajo" : "Normal"}
+              variant={p.stock === 0 ? "danger" : p.stock <= p.min ? "warning" : "success"} />,
+          ])}
+          onEdit={openEdit}
+          onDelete={deleteItem}
+        />
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editItem !== null ? "Editar Producto" : "Nuevo Producto"}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="Código SKU" required><Input value={form.id} onChange={e => setForm({...form, id: e.target.value})} placeholder="SKU-001" /></Field>
+          <Field label="Proveedor"><Input value={form.supplier} onChange={e => setForm({...form, supplier: e.target.value})} placeholder="Nombre del proveedor" /></Field>
+        </div>
+        <Field label="Nombre del Producto" required><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Descripción del producto" /></Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 16px" }}>
+          <Field label="Stock Actual" required><Input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} placeholder="0" /></Field>
+          <Field label="Stock Mínimo" required><Input type="number" value={form.min} onChange={e => setForm({...form, min: e.target.value})} placeholder="0" /></Field>
+          <Field label="Precio ($)"><Input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} placeholder="0.00" /></Field>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          <Button onClick={saveForm}>Guardar Producto</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  FISCAL MACHINES MODULE
+// ═══════════════════════════════════════════════════════
+const FiscalModule = ({ accentColor }) => {
+  const [machines, setMachines] = useState(SAMPLE_MACHINES);
+  const [search, setSearch] = useState("");
+  const [filter, setFilterStatus] = useState("all");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState({ id:"", model:"", serial:"", client:"", status:"activa", lastService:"", nextService:"" });
+
+  const filtered = machines.filter(m =>
+    (filter === "all" || m.status === filter) &&
+    (m.model.toLowerCase().includes(search.toLowerCase()) || m.client.toLowerCase().includes(search.toLowerCase()) || m.serial.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const openDetail = (ri) => { setSelected(filtered[ri]); setDetailOpen(true); };
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "24px 28px" }}>
+      <PageHeader title="Máquinas Fiscales" subtitle={`${machines.length} máquinas registradas`}
+        actions={<Button icon="plus" onClick={() => { setForm({ id:`MF-00${machines.length+1}`, model:"", serial:"", client:"", status:"activa", lastService:"", nextService:""}); setModalOpen(true); }}>Registrar Máquina</Button>}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
+        <StatCard icon="fiscal" iconBg="#F0FDF4" iconColor="#16A34A" label="Activas" value={machines.filter(m=>m.status==="activa").length} />
+        <StatCard icon="services" iconBg="#FFFBEB" iconColor="#D97706" label="En Reparación" value={machines.filter(m=>m.status==="en_reparacion").length} />
+        <StatCard icon="close" iconBg="#FEF2F2" iconColor="#DC2626" label="Dadas de Baja" value={machines.filter(m=>m.status==="dada_de_baja").length} />
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #F1F5F9", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <SearchBar placeholder="Buscar por modelo, serial, cliente..." value={search} onChange={e => setSearch(e.target.value)} />
+          <div style={{ display: "flex", gap: 4 }}>
+            {["all", "activa", "en_reparacion", "dada_de_baja"].map(s => (
+              <button key={s} onClick={() => setFilterStatus(s)} style={{
+                padding: "5px 12px", borderRadius: 8, border: "1.5px solid", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit",
+                borderColor: filter === s ? accentColor : "#E2E8F0",
+                background: filter === s ? accentColor : "#fff",
+                color: filter === s ? "#fff" : "#64748B",
+              }}>
+                {s === "all" ? "Todas" : s === "activa" ? "Activas" : s === "en_reparacion" ? "En Reparación" : "Dadas de Baja"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Table
+          columns={["ID", "Modelo", "N° Serie", "Cliente", "Último Serv.", "Próx. Serv.", "Estado"]}
+          rows={filtered.map(m => [
+            <span style={{ fontFamily: "monospace", fontSize: 12, color: "#64748B" }}>{m.id}</span>,
+            <span style={{ fontWeight: 600, color: "#0F172A" }}>{m.model}</span>,
+            <span style={{ fontFamily: "monospace", fontSize: 11 }}>{m.serial}</span>,
+            m.client,
+            m.lastService,
+            m.nextService,
+            <Badge label={machineStatusInfo[m.status].label} variant={machineStatusInfo[m.status].variant} />,
+          ])}
+          onView={openDetail}
+          onEdit={(ri) => { setForm({...filtered[ri]}); setModalOpen(true); }}
+          onDelete={(ri) => { const m = filtered[ri]; setMachines(prev=>prev.filter(x=>x.id!==m.id)); }}
+        />
+      </div>
+
+      {/* Detail Modal */}
+      <Modal open={detailOpen} onClose={() => setDetailOpen(false)} title={selected ? `Máquina ${selected.id}` : ""} width={560}>
+        {selected && (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+              {[
+                ["Modelo", selected.model], ["N° Serie", selected.serial],
+                ["Cliente", selected.client], ["Estado", <Badge label={machineStatusInfo[selected.status].label} variant={machineStatusInfo[selected.status].variant} />],
+                ["Último Servicio", selected.lastService], ["Próximo Servicio", selected.nextService],
+              ].map(([k,v],i) => (
+                <div key={i} style={{ background: "#F8FAFC", borderRadius: 8, padding: "10px 14px" }}>
+                  <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 3 }}>{k}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#0F172A", marginBottom: 10 }}>Historial de Servicios</div>
+            {SAMPLE_SERVICES.filter(s => s.machine === selected.id).map((s, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, padding: "10px", background: "#F8FAFC", borderRadius: 8, marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{s.id} — {s.issue}</div>
+                  <div style={{ fontSize: 11, color: "#94A3B8" }}>{s.created} · Técnico: {s.tech}</div>
+                </div>
+                <Badge label={SERVICE_STEPS[s.status]} variant={s.status===3?"success":s.status===0?"danger":"warning"} />
+              </div>
+            ))}
+            {SAMPLE_SERVICES.filter(s => s.machine === selected.id).length === 0 && (
+              <div style={{ fontSize: 13, color: "#94A3B8", textAlign: "center", padding: "16px" }}>Sin servicios registrados</div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Form Modal */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Registrar / Editar Máquina">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="ID Interno"><Input value={form.id} onChange={e=>setForm({...form,id:e.target.value})} /></Field>
+          <Field label="Estado"><Select value={form.status} onChange={e=>setForm({...form,status:e.target.value})} options={[{value:"activa",label:"Activa"},{value:"en_reparacion",label:"En Reparación"},{value:"dada_de_baja",label:"Dada de Baja"}]} /></Field>
+        </div>
+        <Field label="Modelo" required><Input value={form.model} onChange={e=>setForm({...form,model:e.target.value})} placeholder="Ej. Bixolon SRP-350" /></Field>
+        <Field label="Número de Serie" required><Input value={form.serial} onChange={e=>setForm({...form,serial:e.target.value})} placeholder="Serial" /></Field>
+        <Field label="Cliente Asignado"><Input value={form.client} onChange={e=>setForm({...form,client:e.target.value})} placeholder="Nombre del cliente" /></Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="Último Servicio"><Input type="date" value={form.lastService} onChange={e=>setForm({...form,lastService:e.target.value})} /></Field>
+          <Field label="Próximo Servicio"><Input type="date" value={form.nextService} onChange={e=>setForm({...form,nextService:e.target.value})} /></Field>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          <Button onClick={() => { setMachines(prev => { const idx=prev.findIndex(m=>m.id===form.id); return idx>=0 ? prev.map((m,i)=>i===idx?form:m) : [...prev, form]; }); setModalOpen(false); }}>Guardar</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  SERVICES MODULE
+// ═══════════════════════════════════════════════════════
+const ServicesModule = ({ accentColor }) => {
+  const [services, setServices] = useState(SAMPLE_SERVICES);
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState({ id:"", machine:"", client:"", tech:"", issue:"", status:0, priority:"media", created:"" });
+
+  const filtered = services.filter(s =>
+    s.client.toLowerCase().includes(search.toLowerCase()) ||
+    s.id.toLowerCase().includes(search.toLowerCase()) ||
+    s.machine.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const advanceStatus = (srvId) => {
+    setServices(prev => prev.map(s => s.id === srvId && s.status < 3 ? {...s, status: s.status + 1} : s));
+  };
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "24px 28px" }}>
+      <PageHeader title="Órdenes de Servicio Técnico" subtitle={`${services.length} órdenes registradas`}
+        actions={<Button icon="plus" onClick={() => { setForm({id:`SRV-00${services.length+1}`,machine:"",client:"",tech:"",issue:"",status:0,priority:"media",created:new Date().toISOString().slice(0,10)}); setModalOpen(true); }}>Nueva Orden</Button>}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+        {SERVICE_STEPS.map((step, i) => (
+          <StatCard key={i} icon="services"
+            iconBg={i===0?"#FEF2F2":i===1?"#FFFBEB":i===2?"#EFF6FF":"#F0FDF4"}
+            iconColor={i===0?"#DC2626":i===1?"#D97706":i===2?accentColor:"#16A34A"}
+            label={step} value={services.filter(s=>s.status===i).length} />
+        ))}
+      </div>
+
+      {/* Kanban-style cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+        {SERVICE_STEPS.map((step, si) => (
+          <div key={si} style={{ background: "#fff", borderRadius: 12, border: "1px solid #E8EDF2", overflow: "hidden" }}>
+            <div style={{ padding: "10px 14px", background: si===0?"#FEF2F2":si===1?"#FFFBEB":si===2?"#EFF6FF":"#F0FDF4", borderBottom: "1px solid #E8EDF2" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: si===0?"#DC2626":si===1?"#D97706":si===2?accentColor:"#16A34A" }}>{step}</span>
+            </div>
+            <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 8, minHeight: 80 }}>
+              {services.filter(s=>s.status===si).map((s, i) => (
+                <div key={i} onClick={() => { setSelected(s); setDetailOpen(true); }}
+                  style={{ background: "#F8FAFC", borderRadius: 8, padding: "10px 12px", cursor: "pointer", border: "1px solid #F1F5F9" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, fontFamily: "monospace", color: "#64748B" }}>{s.id}</span>
+                    <Badge label={priorityInfo[s.priority].label} variant={priorityInfo[s.priority].variant} />
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#0F172A", marginBottom: 2 }}>{s.client}</div>
+                  <div style={{ fontSize: 11, color: "#94A3B8" }}>{s.issue.slice(0,35)}...</div>
+                  <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 6 }}>{s.machine} · {s.created}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* List Table */}
+      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #F1F5F9", display: "flex", gap: 8 }}>
+          <SearchBar placeholder="Buscar orden, cliente, máquina..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Button icon="filter" variant="secondary" size="sm">Filtrar</Button>
+          <Button icon="printer" variant="secondary" size="sm">Imprimir</Button>
+        </div>
+        <Table
+          columns={["Orden", "Máquina", "Cliente", "Problema", "Técnico", "Fecha", "Prioridad", "Estado"]}
+          rows={filtered.map(s => [
+            <span style={{ fontFamily: "monospace", fontSize: 12, color: "#64748B" }}>{s.id}</span>,
+            s.machine,
+            <span style={{ fontWeight: 600 }}>{s.client}</span>,
+            <span style={{ fontSize: 12 }}>{s.issue.slice(0, 28)}...</span>,
+            s.tech,
+            s.created,
+            <Badge label={priorityInfo[s.priority].label} variant={priorityInfo[s.priority].variant} />,
+            <Badge label={SERVICE_STEPS[s.status]} variant={s.status===0?"danger":s.status===3?"success":"warning"} />,
+          ])}
+          onView={(ri) => { setSelected(filtered[ri]); setDetailOpen(true); }}
+          onEdit={(ri) => { setForm({...filtered[ri]}); setModalOpen(true); }}
+          onDelete={(ri) => { const s=filtered[ri]; setServices(prev=>prev.filter(x=>x.id!==s.id)); }}
+        />
+      </div>
+
+      {/* Detail Modal */}
+      <Modal open={detailOpen} onClose={() => setDetailOpen(false)} title={selected ? `Orden ${selected?.id}` : ""} width={580}>
+        {selected && (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <StatusSteps steps={SERVICE_STEPS} current={selected.status} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+              {[["Máquina",selected.machine],["Cliente",selected.client],["Técnico",selected.tech],["Fecha",selected.created],["Prioridad",<Badge label={priorityInfo[selected.priority].label} variant={priorityInfo[selected.priority].variant}/>],["Estado",<Badge label={SERVICE_STEPS[selected.status]} variant={selected.status===3?"success":selected.status===0?"danger":"warning"}/>]].map(([k,v],i)=>(
+                <div key={i} style={{background:"#F8FAFC",borderRadius:8,padding:"10px 14px"}}>
+                  <div style={{fontSize:11,color:"#94A3B8",marginBottom:3}}>{k}</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#0F172A"}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <Field label="Descripción del Problema">
+              <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#334155" }}>{selected.issue}</div>
+            </Field>
+            {selected.status < 3 && (
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+                <Button variant="success" icon="check" onClick={() => { advanceStatus(selected.id); setDetailOpen(false); }}>
+                  Avanzar a: {SERVICE_STEPS[selected.status + 1]}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Form Modal */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva Orden de Servicio">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="ID de Orden"><Input value={form.id} onChange={e=>setForm({...form,id:e.target.value})} /></Field>
+          <Field label="Prioridad"><Select value={form.priority} onChange={e=>setForm({...form,priority:e.target.value})} options={["alta","media","baja"]} /></Field>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="Máquina (ID)" required><Input value={form.machine} onChange={e=>setForm({...form,machine:e.target.value})} placeholder="MF-001" /></Field>
+          <Field label="Cliente" required><Input value={form.client} onChange={e=>setForm({...form,client:e.target.value})} placeholder="Nombre del cliente" /></Field>
+        </div>
+        <Field label="Técnico Asignado"><Input value={form.tech} onChange={e=>setForm({...form,tech:e.target.value})} placeholder="Nombre del técnico" /></Field>
+        <Field label="Descripción del Problema" required>
+          <textarea value={form.issue} onChange={e=>setForm({...form,issue:e.target.value})}
+            placeholder="Describir el problema..." rows={3}
+            style={{ width:"100%", padding:"8px 12px", border:"1.5px solid #E2E8F0", borderRadius:8, fontSize:13, outline:"none", background:"#F8FAFC", resize:"vertical", fontFamily:"inherit" }} />
+        </Field>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          <Button onClick={() => { setServices(prev => [...prev, {...form, status: 0}]); setModalOpen(false); }}>Crear Orden</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  CLIENTS MODULE
+// ═══════════════════════════════════════════════════════
+const ClientsModule = ({ accentColor }) => {
+  const [clients, setClients] = useState(SAMPLE_CLIENTS);
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ id:"", name:"", rif:"", phone:"", email:"", city:"", machines:0 });
+
+  const filtered = clients.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.rif.includes(search)
+  );
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "24px 28px" }}>
+      <PageHeader title="Clientes" subtitle={`${clients.length} clientes registrados`}
+        actions={<Button icon="plus" onClick={() => { setForm({id:`CLI-00${clients.length+1}`,name:"",rif:"",phone:"",email:"",city:"",machines:0}); setModalOpen(true); }}>Nuevo Cliente</Button>}
+      />
+      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #F1F5F9", display: "flex", gap: 8 }}>
+          <SearchBar placeholder="Buscar por nombre o RIF..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Button icon="download" variant="secondary" size="sm">Exportar</Button>
+        </div>
+        <Table
+          columns={["ID", "Nombre / Razón Social", "RIF", "Teléfono", "Email", "Ciudad", "Máquinas"]}
+          rows={filtered.map(c => [
+            <span style={{ fontFamily: "monospace", fontSize: 12, color: "#64748B" }}>{c.id}</span>,
+            <span style={{ fontWeight: 600, color: "#0F172A" }}>{c.name}</span>,
+            <span style={{ fontFamily: "monospace", fontSize: 12 }}>{c.rif}</span>,
+            c.phone, c.email, c.city,
+            <Badge label={`${c.machines} máquina${c.machines!==1?"s":""}`} variant="default" />,
+          ])}
+          onEdit={(ri) => { setForm({...filtered[ri]}); setModalOpen(true); }}
+          onDelete={(ri) => { const c=filtered[ri]; setClients(prev=>prev.filter(x=>x.id!==c.id)); }}
+        />
+      </div>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={form.name ? `Editar: ${form.name}` : "Nuevo Cliente"}>
+        <Field label="Nombre / Razón Social" required><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="RIF" required><Input value={form.rif} onChange={e=>setForm({...form,rif:e.target.value})} placeholder="J-12345678-9" /></Field>
+          <Field label="Ciudad"><Input value={form.city} onChange={e=>setForm({...form,city:e.target.value})} /></Field>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="Teléfono"><Input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} /></Field>
+          <Field label="Email"><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} /></Field>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          <Button onClick={() => { setClients(prev => { const idx=prev.findIndex(c=>c.id===form.id); return idx>=0?prev.map((c,i)=>i===idx?form:c):[...prev,form]; }); setModalOpen(false); }}>Guardar</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  SUPPLIERS MODULE
+// ═══════════════════════════════════════════════════════
+const SuppliersModule = ({ accentColor }) => {
+  const [suppliers, setSuppliers] = useState(SAMPLE_SUPPLIERS);
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ id:"", name:"", contact:"", phone:"", email:"", city:"", products:0 });
+
+  const filtered = suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "24px 28px" }}>
+      <PageHeader title="Proveedores" subtitle={`${suppliers.length} proveedores registrados`}
+        actions={<Button icon="plus" onClick={() => { setForm({id:`PRV-00${suppliers.length+1}`,name:"",contact:"",phone:"",email:"",city:"",products:0}); setModalOpen(true); }}>Nuevo Proveedor</Button>}
+      />
+      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #F1F5F9", display: "flex", gap: 8 }}>
+          <SearchBar placeholder="Buscar proveedor..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <Table
+          columns={["ID", "Empresa", "Contacto", "Teléfono", "Email", "Ciudad", "Productos"]}
+          rows={filtered.map(s => [
+            <span style={{ fontFamily: "monospace", fontSize: 12, color: "#64748B" }}>{s.id}</span>,
+            <span style={{ fontWeight: 600 }}>{s.name}</span>,
+            s.contact, s.phone, s.email, s.city,
+            <Badge label={`${s.products} productos`} variant="neutral" />,
+          ])}
+          onEdit={(ri) => { setForm({...filtered[ri]}); setModalOpen(true); }}
+          onDelete={(ri) => { const s=filtered[ri]; setSuppliers(prev=>prev.filter(x=>x.id!==s.id)); }}
+        />
+      </div>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Proveedor">
+        <Field label="Nombre de la Empresa" required><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="Contacto Principal"><Input value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})} /></Field>
+          <Field label="Ciudad"><Input value={form.city} onChange={e=>setForm({...form,city:e.target.value})} /></Field>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="Teléfono"><Input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} /></Field>
+          <Field label="Email"><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} /></Field>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          <Button onClick={() => { setSuppliers(prev => [...prev, form]); setModalOpen(false); }}>Guardar</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  REPORTS MODULE
+// ═══════════════════════════════════════════════════════
+const ReportsModule = ({ accentColor }) => {
+  const monthLabels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const serviciosData = [5, 8, 6, 11, 9, 13, 10, 15, 12, 9, 14, 11];
+  const ingresoData = [1200,1800,1400,2400,2100,2900,2300,3200,2800,2100,3100,2500];
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "24px 28px" }}>
+      <PageHeader title="Reportes y Estadísticas"
+        actions={<><Button icon="download" variant="secondary" size="sm">Exportar CSV</Button><Button icon="printer" variant="secondary" size="sm">Imprimir</Button></>}
+      />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+        <StatCard icon="services" iconBg="#EFF6FF" iconColor={accentColor} label="Servicios este año" value="113" delta="+19%" deltaUp={true} />
+        <StatCard icon="fiscal" iconBg="#F0FDF4" iconColor="#16A34A" label="Máquinas gestionadas" value={SAMPLE_MACHINES.length} />
+        <StatCard icon="clients" iconBg="#FAF5FF" iconColor="#7C3AED" label="Clientes activos" value={SAMPLE_CLIENTS.length} delta="+2" deltaUp={true} />
+        <StatCard icon="inventory" iconBg="#FFFBEB" iconColor="#D97706" label="Valor inventario" value="$18,450" delta="+8%" deltaUp={true} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
+        <div style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", border: "1px solid #E8EDF2" }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A", marginBottom: 16 }}>Servicios por Mes — 2025</div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120, marginBottom: 8 }}>
+            {serviciosData.map((v, i) => {
+              const max = Math.max(...serviciosData);
+              const h = (v / max) * 100;
+              return (
+                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 10, color: "#0F172A", fontWeight: 600 }}>{v}</span>
+                  <div style={{ width: "100%", background: i === 3 ? accentColor : accentColor + "60", borderRadius: "4px 4px 0 0", height: `${h}%`, minHeight: 4 }} />
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {monthLabels.map((m,i) => <span key={i} style={{ flex:1, fontSize:9, color:"#94A3B8", textAlign:"center" }}>{m}</span>)}
+          </div>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", border: "1px solid #E8EDF2" }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A", marginBottom: 16 }}>Distribución Servicios</div>
+          {[
+            { label: "Mantenimiento Preventivo", count: 42, color: "#16A34A" },
+            { label: "Reparación", count: 38, color: accentColor },
+            { label: "Instalación", count: 18, color: "#7C3AED" },
+            { label: "Actualización", count: 15, color: "#D97706" },
+          ].map((item, i) => (
+            <div key={i} style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                <span style={{ fontSize: 12, color: "#475569" }}>{item.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#0F172A" }}>{item.count}</span>
+              </div>
+              <div style={{ background: "#F1F5F9", borderRadius: 99, height: 8 }}>
+                <div style={{ background: item.color, borderRadius: 99, height: 8, width: `${(item.count/113)*100}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", border: "1px solid #E8EDF2" }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A", marginBottom: 16 }}>Top Clientes por Servicios</div>
+        <Table
+          columns={["Cliente", "RIF", "Máquinas", "Servicios Totales", "Último Servicio"]}
+          rows={[
+            [<span style={{fontWeight:600}}>Farmacia Central</span>, "J-12345678-9", "1", "12", "2025-04-01"],
+            [<span style={{fontWeight:600}}>Supermercado El Sol</span>, "J-98765432-1", "1", "9", "2025-04-28"],
+            [<span style={{fontWeight:600}}>Bodegón Premium</span>, "J-45678901-2", "1", "7", "2025-04-20"],
+            [<span style={{fontWeight:600}}>Clínica San José</span>, "J-11223344-5", "1", "6", "2025-04-22"],
+            [<span style={{fontWeight:600}}>Ferretería Los Andes</span>, "J-67890123-4", "1", "5", "2025-04-30"],
+          ]}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  USERS MODULE
+// ═══════════════════════════════════════════════════════
+const UsersModule = ({ accentColor }) => {
+  const [modalOpen, setModalOpen] = useState(false);
+  const users = [
+    { id: 1, name: "Administrador Principal", email: "admin@sistema.ve", role: "Administrador", status: "activo", lastLogin: "Hoy 09:14" },
+    { id: 2, name: "Carlos Méndez", email: "cmendez@sistema.ve", role: "Técnico", status: "activo", lastLogin: "Hoy 08:45" },
+    { id: 3, name: "Luis Rodríguez", email: "lrodriguez@sistema.ve", role: "Técnico", status: "activo", lastLogin: "Ayer 17:30" },
+    { id: 4, name: "Ana Torres", email: "atorres@sistema.ve", role: "Técnico", status: "activo", lastLogin: "Ayer 16:10" },
+    { id: 5, name: "María González", email: "mgonzalez@sistema.ve", role: "Recepcionista", status: "inactivo", lastLogin: "Hace 5 días" },
+  ];
+  const roleColors = { "Administrador": "purple", "Técnico": "default", "Recepcionista": "success" };
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "24px 28px" }}>
+      <PageHeader title="Usuarios y Permisos"
+        actions={<Button icon="plus" onClick={() => setModalOpen(true)}>Nuevo Usuario</Button>}
+      />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+        <StatCard icon="users" iconBg="#EFF6FF" iconColor={accentColor} label="Total Usuarios" value={users.length} />
+        <StatCard icon="check" iconBg="#F0FDF4" iconColor="#16A34A" label="Usuarios Activos" value={users.filter(u=>u.status==="activo").length} />
+        <StatCard icon="settings" iconBg="#FAF5FF" iconColor="#7C3AED" label="Roles Configurados" value="3" />
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E8EDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <Table
+          columns={["#", "Nombre Completo", "Email", "Rol", "Último Acceso", "Estado"]}
+          rows={users.map(u => [
+            u.id,
+            <span style={{ fontWeight: 600 }}>{u.name}</span>,
+            <span style={{ color: "#64748B" }}>{u.email}</span>,
+            <Badge label={u.role} variant={roleColors[u.role] || "neutral"} />,
+            <span style={{ fontSize: 12, color: "#94A3B8" }}>{u.lastLogin}</span>,
+            <Badge label={u.status === "activo" ? "Activo" : "Inactivo"} variant={u.status === "activo" ? "success" : "neutral"} />,
+          ])}
+          onEdit={() => setModalOpen(true)}
+          onDelete={() => {}}
+        />
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo Usuario">
+        <Field label="Nombre Completo" required><Input placeholder="Nombre y apellido" /></Field>
+        <Field label="Email" required><Input type="email" placeholder="correo@empresa.ve" /></Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+          <Field label="Contraseña" required><Input type="password" placeholder="••••••••" /></Field>
+          <Field label="Rol"><Select options={["Administrador","Técnico","Recepcionista"]} /></Field>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          <Button onClick={() => setModalOpen(false)}>Crear Usuario</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════════════════════════
+const NAV_ITEMS = [
+  { id: "dashboard", icon: "dashboard", label: "Dashboard" },
+  { id: "inventory", icon: "inventory", label: "Inventario" },
+  { id: "fiscal", icon: "fiscal", label: "Máquinas Fiscales" },
+  { id: "services", icon: "services", label: "Servicios" },
+  { id: "clients", icon: "clients", label: "Clientes" },
+  { id: "suppliers", icon: "suppliers", label: "Proveedores" },
+  { id: "reports", icon: "reports", label: "Reportes" },
+  { id: "users", icon: "users", label: "Usuarios" },
+];
+
+const Sidebar = ({ active, onNavigate, collapsed, accentColor }) => {
+  const [hovered, setHovered] = useState(null);
+  const lowStock = SAMPLE_PRODUCTS.filter(p => p.stock <= p.min).length;
+  const pendingServices = SAMPLE_SERVICES.filter(s => s.status === 0).length;
+  const badges = { inventory: lowStock > 0 ? lowStock : null, services: pendingServices > 0 ? pendingServices : null };
+
+  return (
+    <div style={{
+      width: collapsed ? 64 : 230, flexShrink: 0,
+      background: "#1A2235", height: "100%",
+      display: "flex", flexDirection: "column",
+      transition: "width 0.25s ease",
+      overflow: "hidden",
+    }}>
+      {/* Logo */}
+      <div style={{ padding: collapsed ? "20px 0" : "20px 18px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid rgba(255,255,255,0.07)", justifyContent: collapsed ? "center" : "flex-start" }}>
+        <div style={{ width: 32, height: 32, background: accentColor, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon name="printer" size={16} color="#fff" />
+        </div>
+        {!collapsed && <div>
+          <div style={{ color: "#fff", fontWeight: 800, fontSize: 13, lineHeight: 1 }}>SistemaFiscal</div>
+          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>Gestión Integral</div>
+        </div>}
+      </div>
+
+      {/* Nav */}
+      <nav style={{ flex: 1, padding: "12px 8px", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
+        {NAV_ITEMS.map(item => {
+          const isActive = active === item.id;
+          const isHovered = hovered === item.id;
+          return (
+            <button key={item.id}
+              onClick={() => onNavigate(item.id)}
+              onMouseEnter={() => setHovered(item.id)}
+              onMouseLeave={() => setHovered(null)}
+              title={collapsed ? item.label : undefined}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: collapsed ? "10px" : "10px 12px",
+                borderRadius: 8, border: "none", cursor: "pointer",
+                background: isActive ? accentColor : isHovered ? "rgba(255,255,255,0.07)" : "transparent",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.65)",
+                fontFamily: "inherit", fontSize: 13, fontWeight: isActive ? 600 : 400,
+                transition: "all 0.15s",
+                justifyContent: collapsed ? "center" : "flex-start",
+                position: "relative",
+              }}>
+              <Icon name={item.icon} size={17} color={isActive ? "#fff" : "rgba(255,255,255,0.65)"} />
+              {!collapsed && <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>}
+              {!collapsed && badges[item.id] && (
+                <span style={{ background: "#EF4444", color: "#fff", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10, minWidth: 18, textAlign: "center" }}>
+                  {badges[item.id]}
+                </span>
+              )}
+              {collapsed && badges[item.id] && (
+                <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, background: "#EF4444", borderRadius: "50%" }} />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Bottom */}
+      <div style={{ padding: "12px 8px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+        <button style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: collapsed ? "10px" : "10px 12px", width: "100%",
+          borderRadius: 8, border: "none", cursor: "pointer",
+          background: "transparent", color: "rgba(255,255,255,0.45)",
+          fontFamily: "inherit", fontSize: 13,
+          justifyContent: collapsed ? "center" : "flex-start",
+        }}>
+          <Icon name="logout" size={16} color="rgba(255,255,255,0.45)" />
+          {!collapsed && "Cerrar Sesión"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  TOPBAR
+// ═══════════════════════════════════════════════════════
+const TopBar = ({ module, onToggleSidebar, accentColor }) => {
+  const titles = { dashboard:"Dashboard", inventory:"Inventario", fiscal:"Máquinas Fiscales", services:"Servicios", clients:"Clientes", suppliers:"Proveedores", reports:"Reportes", users:"Usuarios y Permisos" };
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  return (
+    <div style={{ height: 52, background: "#fff", borderBottom: "1px solid #E8EDF2", display: "flex", alignItems: "center", padding: "0 20px", gap: 12, flexShrink: 0 }}>
+      <button onClick={onToggleSidebar} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748B", display: "flex", padding: 4 }}>
+        <Icon name="menu" size={18} />
+      </button>
+      <span style={{ fontSize: 14, fontWeight: 600, color: "#334155" }}>{titles[module]}</span>
+      <div style={{ flex: 1 }} />
+      <div style={{ position: "relative" }}>
+        <button onClick={() => setNotifOpen(!notifOpen)} style={{ background: notifOpen ? "#EFF6FF" : "none", border: "none", cursor: "pointer", color: "#64748B", display: "flex", padding: 6, borderRadius: 8, position: "relative" }}>
+          <Icon name="bell" size={18} />
+          <span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, background: "#EF4444", borderRadius: "50%", border: "2px solid #fff" }} />
+        </button>
+        {notifOpen && (
+          <div style={{ position: "absolute", right: 0, top: 38, background: "#fff", border: "1px solid #E8EDF2", borderRadius: 12, width: 300, boxShadow: "0 8px 30px rgba(0,0,0,0.12)", zIndex: 100 }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #F1F5F9", fontWeight: 700, fontSize: 13 }}>Notificaciones</div>
+            {[
+              { text: "Stock bajo: Papel Térmico 80mm", time: "Hace 5 min", color: "#FFFBEB", icon: "alert" },
+              { text: "Nueva orden SRV-005 creada", time: "Hace 22 min", color: "#EFF6FF", icon: "services" },
+              { text: "Agotado: Tinta HP Negra", time: "Hace 1 hora", color: "#FEF2F2", icon: "close" },
+            ].map((n, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "10px 16px", borderBottom: i < 2 ? "1px solid #F1F5F9" : "none" }}>
+                <div style={{ width: 30, height: 30, borderRadius: 8, background: n.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon name={n.icon} size={14} color="#64748B" />
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "#0F172A" }}>{n.text}</div>
+                  <div style={{ fontSize: 11, color: "#94A3B8" }}>{n.time}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, borderLeft: "1px solid #E8EDF2", paddingLeft: 12 }}>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: accentColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>AD</span>
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#0F172A", lineHeight: 1.2 }}>Administrador</div>
+          <div style={{ fontSize: 10, color: "#94A3B8" }}>admin@sistema.ve</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════
+//  MAIN APP
+// ═══════════════════════════════════════════════════════
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#e89754",
+  "dashVariant": "A",
+  "sidebarCollapsed": false,
+  "compactMode": false,
+  "fontScale": 1
+}/*EDITMODE-END*/;
+
+const App = () => {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const { accentColor, dashVariant, sidebarCollapsed, compactMode, fontScale } = tweaks;
+
+  const [module, setModule] = useState("dashboard");
+  const [collapsed, setCollapsed] = useState(sidebarCollapsed);
+
+  useEffect(() => { setCollapsed(sidebarCollapsed); }, [sidebarCollapsed]);
+
+  const moduleContent = {
+    dashboard: <DashboardModule dashVariant={dashVariant} accentColor={accentColor} />,
+    inventory: <InventoryModule accentColor={accentColor} />,
+    fiscal: <FiscalModule accentColor={accentColor} />,
+    services: <ServicesModule accentColor={accentColor} />,
+    clients: <ClientsModule accentColor={accentColor} />,
+    suppliers: <SuppliersModule accentColor={accentColor} />,
+    reports: <ReportsModule accentColor={accentColor} />,
+    users: <UsersModule accentColor={accentColor} />,
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100vh", width: "100vw", fontSize: `${fontScale * 100}%`, background: "#F0F4F8" }}>
+      <Sidebar active={module} onNavigate={setModule} collapsed={collapsed} accentColor={accentColor} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        <TopBar module={module} onToggleSidebar={() => setCollapsed(c => !c)} accentColor={accentColor} />
+        <main style={{ flex: 1, overflow: "hidden", background: "#F0F4F8" }}>
+          {moduleContent[module]}
+        </main>
+      </div>
+
+      <TweaksPanel>
+        <TweakSection label="Apariencia" />
+        <TweakColor label="Color principal" value={accentColor} onChange={v => setTweak("accentColor", v)} />
+        <TweakToggle label="Sidebar compacto" value={sidebarCollapsed} onChange={v => setTweak("sidebarCollapsed", v)} />
+        <TweakToggle label="Modo compacto" value={compactMode} onChange={v => setTweak("compactMode", v)} />
+        <TweakSlider label="Escala de texto" value={fontScale} min={0.85} max={1.2} step={0.05} onChange={v => setTweak("fontScale", v)} />
+        <TweakSection label="Dashboard — Variante" />
+        <TweakRadio label="Diseño del panel" value={dashVariant}
+          options={["A", "B", "C"]}
+          onChange={v => setTweak("dashVariant", v)} />
+      </TweaksPanel>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
